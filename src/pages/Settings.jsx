@@ -83,7 +83,7 @@ export default function Settings() {
         <div className="px-4 pb-3">
           <label className={cls.label} htmlFor="tname">식탁 이름</label>
           <input id="tname" value={name} maxLength={20} disabled={!t.canWrite} onChange={e => setName(e.target.value)}
-            onBlur={() => { const n = name.trim(); if (n && n !== t.table.name) { t.updateTable({ name: n }); toast('식탁 이름을 바겼어요'); } else setName(t.table.name); }}
+            onBlur={() => { const n = name.trim(); if (n && n !== t.table.name) { t.updateTable({ name: n }); toast('식탁 이름을 바꿨어요'); } else setName(t.table.name); }}
             onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} className={cls.input} />
         </div>
         <Row title="처음 열 때 보기"><Seg value={s.defaultView} options={[['2w', '2주'], ['month', '한 달']]} onChange={v => t.updateSettings({ defaultView: v })} disabled={!t.canWrite} /></Row>
@@ -103,7 +103,7 @@ export default function Settings() {
           <label className={cls.label} htmlFor="nick">닉네임</label>
           <div className="flex gap-2">
             <input id="nick" value={nick} maxLength={12} onChange={e => setNick(e.target.value)} className={cls.input} />
-            <button type="button" disabled={!nick.trim() || nick.trim() === profile.nickname} onClick={async () => { await saveProfile({ nickname: nick, tint: profile.tint }); t.reload(); toast('닉네임을 바겼어요'); }} className={cls.primary + ' shrink-0'}>저장</button>
+            <button type="button" disabled={!nick.trim() || nick.trim() === profile.nickname} onClick={async () => { await saveProfile({ nickname: nick, tint: profile.tint }); t.reload(); toast('닉네임을 바꿨어요'); }} className={cls.primary + ' shrink-0'}>저장</button>
           </div>
           <div className="mt-3 flex gap-2" role="radiogroup" aria-label="내 색">
             {TINTS.map(c => (

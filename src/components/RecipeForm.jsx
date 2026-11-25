@@ -17,7 +17,7 @@ function DishForm({ dish, onChange }) {
       <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
         <div>
           <label className={cls.label} htmlFor={`t-${dish.id}`}>요리명</label>
-          <input id={`t-${dish.id}`} value={dish.title} maxLength={60} onChange={e => set('title', e.target.value)} className={cls.input} placeholder="예: 명란 솜밥" />
+          <input id={`t-${dish.id}`} value={dish.title} maxLength={60} onChange={e => set('title', e.target.value)} className={cls.input} placeholder="예: 명란 솥밥" />
         </div>
         <div><span className={cls.label}>기준 인분</span><Stepper value={dish.servings} onChange={v => set('servings', v)} suffix="인분" /></div>
       </div>
