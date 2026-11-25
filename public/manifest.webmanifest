@@ -1,0 +1,9 @@
+{
+  "name": "우리집 식탁",
+  "short_name": "식탁",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F7F8F5",
+  "theme_color": "#F7F8F5",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
