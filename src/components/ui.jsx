@@ -196,7 +196,7 @@ export const Stars = ({ n, size = 13 }) => (
   </span>
 );
 
-export function TagInput({ tags, onChange, placeholder = '#솜밥 #명란 (Enter로 추가)', disabled }) {
+export function TagInput({ tags, onChange, placeholder = '#솥밥 #명란 (Enter로 추가)', disabled }) {
   const [v, setV] = useState('');
   const commit = () => {
     const parts = v.split(/[,，\n]/).map(t => t.trim().replace(/^#/, '')).filter(Boolean);
