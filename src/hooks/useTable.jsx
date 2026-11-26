@@ -141,6 +141,13 @@ export function TableProvider({ tableId, children }) {
     setEvents(l => [...l.filter(x => x.id !== e.id), e]);
     await run(supabase.from('events').upsert(e)).catch(() => {});
   };
+  // 하루 안의 메뉴 순서 바꾸기 (꾹 눌러서 끌기). ids: 새 순서
+  const reorderEvents = async ids => {
+    if (!guard()) return;
+    const at = new Map(ids.map((id, i) => [id, i]));
+    setEvents(l => l.map(e => at.has(e.id) ? { ...e, pos: at.get(e.id) } : e));
+    await Promise.all(ids.map((id, i) => run(supabase.from('events').update({ pos: i }).eq('id', id)).catch(() => {})));
+  };
 
   // ---- 레시피 ----
   const clean = r => ({ id: r.id, table_id: tableId, source: r.source, source_url: r.source_url || '', links: r.links || [], dishes: r.dishes, imported_from: r.imported_from || null });
@@ -329,6 +336,9 @@ export function TableProvider({ tableId, children }) {
   // ---- 조회 도우미 ----
   const catMap = useMemo(() => Object.fromEntries(categories.map((c, i) => [c.id, { ...c, order: i }])), [categories]);
   const getCat = id => catMap[id] || { id, label: '기타', grp: 'life', bg: '#EFEFEF', fg: '#5C5F5B', order: 99 };
+  // 하루 안 메뉴 순서: 직접 바꾼 순서(pos)가 먼저, 없으면 끼니 카테고리 순서
+  const evKey = e => (e.pos ?? null) !== null ? e.pos : 100 + getCat(e.category_id).order;
+  const evCmp = (a, b) => evKey(a) - evKey(b) || String(a.created_at).localeCompare(String(b.created_at));
   const profileOf = uid => {
     const m = members.find(x => x.user_id === uid);
     return m?.profiles ? { nickname: m.profiles.nickname, tint: m.profiles.tint } : uid === user.id && profile ? profile : null;
@@ -341,7 +351,7 @@ export function TableProvider({ tableId, children }) {
   const value = {
     status, table, settings, members, categories, recipes, events, shopping, reviews, favorites, notes, wishes,
     me: user.id, myRole, canWrite, periodKey, isOwner: myRole === 'owner', others, setEditing, isBasic, getCat, profileOf, findDish, reload: load,
-    addEvent, deleteEvent, restoreEvent, addRecipes, updateRecipe, deleteRecipe, splitRecipe,
+    addEvent, deleteEvent, restoreEvent, reorderEvents, evCmp, addRecipes, updateRecipe, deleteRecipe, splitRecipe,
     addShopping, toggleShopping, deleteShopping, restoreShopping, clearChecked,
     addNote, deleteNote, toggleNoteLike, addWish, updateWish, toggleWishVote, deleteWish,
     setReview, isFav, toggleFav, addCategory, updateCategory, deleteCategory, moveCategory,
