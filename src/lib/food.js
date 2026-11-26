@@ -44,6 +44,10 @@ export const guessExpires = (name, place) => {
   return place === 'fridge' && g.place === 'fridge' && g.days ? toKey(addDays(new Date(), g.days)) : null;
 };
 
+// 소스 · 양념 안에서 냉장 / 실온 (열면 냉장 보관하는 것들)
+export const sauceKeep = name => (/고추장|쌈장|초장|된장|마요|굴소스|케첩|잼|머스타드|와사비|고추냉이|드레싱|소스/.test(String(name || '')) ? 'fridge' : 'room');
+export const KEEPS = [{ id: 'fridge', label: '냉장' }, { id: 'room', label: '실온' }];
+
 export const PLACES = [
   { id: 'fridge', label: '냉장', bg: '#E6EEE3' },
   { id: 'freezer', label: '냉동', bg: '#E4ECF2' },

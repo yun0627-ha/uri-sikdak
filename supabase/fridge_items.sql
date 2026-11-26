@@ -28,3 +28,8 @@ alter table public.reviews replica identity full;
 
 -- 하루 안 메뉴 순서
 alter table public.events add column if not exists pos integer;
+
+-- 소스 · 양념 안에서 냉장 / 실온
+alter table public.fridge_items drop constraint if exists fridge_items_place_check;
+alter table public.fridge_items add constraint fridge_items_place_check check (place in ('fridge', 'freezer', 'room', 'sauce'));
+alter table public.fridge_items add column if not exists keep text check (keep in ('fridge', 'room'));
