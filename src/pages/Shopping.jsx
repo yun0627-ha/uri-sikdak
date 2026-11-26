@@ -134,6 +134,10 @@ function Fridge() {
     t.deleteFridge(f); setOpen(null);
     toast(`'${f.name}' 다 먹었어요`, { label: '장바구니에 담기', fn: () => { t.addShopping([{ name: f.name, amount: '', unit: '', sources: [] }]); toast(`'${f.name}'을(를) 장바구니에 담았어요`); } });
   };
+  const remove = f => {
+    t.deleteFridge(f); setOpen(null);
+    toast(`'${f.name}'을(를) 뺐어요`, { label: '되돌리기', fn: () => t.restoreFridge(f) });
+  };
   const sortKey = f => f.expires || '9999-99-99';
   if (!t.fridge.length) {
     return (
@@ -175,14 +179,22 @@ function Fridge() {
                 const dd = dday(f.expires);
                 const isOpen = open === f.id;
                 return (
-                  <li key={f.id} data-fridge-item={f.id} className="bg-white border border-line rounded-2xl">
-                    <button type="button" onClick={() => t.canWrite && setOpen(isOpen ? null : f.id)} aria-expanded={isOpen}
-                      className={`w-full flex items-center gap-3 px-3.5 py-3 text-left rounded-2xl ${focus}`}>
-                      <Tile name={f.name} place={f.place} />
-                      <span className="flex-1 min-w-0 text-[15px] text-ink font-medium truncate">{f.name}
-                        {f.amount && <span className="ml-1.5 font-normal text-[12px] text-faintink">{f.amount}</span>}</span>
-                      {dd && <span className={`shrink-0 text-[12px] px-2.5 py-0.5 rounded-full ${TONE[dd.tone]}`}>{dd.label}</span>}
-                    </button>
+                  <li key={f.id} data-fridge-item={f.id} className={`bg-white border rounded-2xl ${isOpen ? 'border-[#C9D6C4]' : 'border-line'}`}>
+                    <div className="flex items-center pr-1.5">
+                      <button type="button" onClick={() => t.canWrite && setOpen(isOpen ? null : f.id)} aria-expanded={isOpen}
+                        className={`flex-1 min-w-0 flex items-center gap-3 pl-3.5 pr-1 py-3 text-left rounded-2xl ${focus}`}>
+                        <Tile name={f.name} place={f.place} />
+                        <span className="flex-1 min-w-0 text-[15px] text-ink font-medium truncate">{f.name}
+                          {f.amount && <span className="ml-1.5 font-normal text-[12px] text-faintink">{f.amount}</span>}</span>
+                        {dd && <span className={`shrink-0 text-[12px] px-2.5 py-0.5 rounded-full ${TONE[dd.tone]}`}>{dd.label}</span>}
+                      </button>
+                      {t.canWrite && <>
+                        <button type="button" aria-label={`${f.name} 고치기`} onClick={() => setOpen(isOpen ? null : f.id)}
+                          className={`h-8 w-8 grid place-items-center rounded-full ${isOpen ? 'text-sage bg-sage-faint' : 'text-faintink hover:text-ink'}`}><Icon d={I.edit} size={14} /></button>
+                        <button type="button" aria-label={`${f.name} 빼기`} onClick={() => remove(f)}
+                          className="h-8 w-8 grid place-items-center rounded-full text-faintink hover:text-[#9E4742] hover:bg-[#F7E8E6]"><Icon d={I.x} size={14} /></button>
+                      </>}
+                    </div>
                     {isOpen && <FridgeEdit f={f} onEaten={() => eaten(f)} />}
                   </li>
                 );
@@ -191,7 +203,7 @@ function Fridge() {
           </section>
         );
       })}
-      {t.canWrite && !q.trim() && <p className="mt-1 text-center text-[12px] text-faintink">재료를 누르면 장소 · 양 · 유통기한을 고칠 수 있어요</p>}
+
     </>
   );
 }
@@ -210,11 +222,13 @@ const longKo = iso => { const [y, m, d] = iso.split('-').map(Number); return `${
 // 냉장고 재료 고치기 (누르면 아래로 펼쳐지고, 밖을 누르면 닫혀요)
 function FridgeEdit({ f, onEaten }) {
   const t = useTable();
+  const [name, setName] = useState(f.name);
   const [amount, setAmount] = useState(f.amount || '');
   const [digits, setDigits] = useState(toDigits(f.expires));
   const latest = useRef({});
-  latest.current = { f, amount, digits };
+  latest.current = { f, name, amount, digits };
   const saveAmount = () => { const { f: x, amount: a } = latest.current; if (a.trim() !== (x.amount || '')) t.updateFridge(x, { amount: a.trim().slice(0, 30) }); };
+  const saveName = () => { const { f: x, name: n } = latest.current; if (n.trim() && n.trim() !== x.name) t.updateFridge(x, { name: n.trim().slice(0, 40) }); };
   const typeDate = v => {
     const d = v.replace(/\D/g, '').slice(0, 6);
     setDigits(d);
@@ -223,11 +237,16 @@ function FridgeEdit({ f, onEaten }) {
     if (!d && f.expires) t.updateFridge(f, { expires: null });
   };
   // 닫힐 때 쓰던 양도 저장
-  useEffect(() => () => saveAmount(), []);
+  useEffect(() => () => { saveName(); saveAmount(); }, []);
   const iso = fromDigits(digits);
   return (
     <div className="px-3.5 pb-3 pt-1 border-t border-line flex flex-col gap-2.5">
-      <div className="flex items-center gap-2 pt-2">
+      <label className="flex items-center gap-2 pt-2">
+        <span className="w-14 shrink-0 text-[12px] text-muted">이름</span>
+        <input value={name} onChange={e => setName(e.target.value)} onBlur={saveName} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} autoComplete="off" maxLength={40}
+          className="flex-1 min-w-0 h-8 border-b border-[#C9D6C4] bg-transparent px-0.5 text-[14px] focus:outline-none focus:border-sage" />
+      </label>
+      <div className="flex items-center gap-2">
         <span className="w-14 shrink-0 text-[12px] text-muted">보관</span>
         <div className="inline-flex rounded-full border border-line bg-canvas p-0.5">
           {PLACES.map(p => (
