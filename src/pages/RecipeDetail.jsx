@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTable, editorsOf } from '../hooks/useTable.jsx';
 import { useAuth } from '../hooks/useAuth.jsx';
-import { Avatar, ByLine, Check, cls, EditingBanner, Empty, focus, HeartButton, Icon, I, IconButton, RoundCheck, SectionTitle, Stars, Stepper, TypePill, useToast } from '../components/ui.jsx';
+import { Avatar, ByLine, Check, cls, EditingBanner, Empty, focus, HeartButton, Icon, I, IconButton, RoundCheck, SectionTitle, Stepper, TypePill, useToast } from '../components/ui.jsx';
 import RecipeForm from '../components/RecipeForm.jsx';
 import CookingMode from '../components/CookingMode.jsx';
 import AddSheet from '../components/AddSheet.jsx';
@@ -271,36 +271,48 @@ function ReviewSection({ recipe, dish }) {
   };
   return (
     <>
-      <SectionTitle right={avg ? <span className="text-[15px] font-bold text-[#9A7428]">★ {avg.toFixed(1)}<span className="ml-1 text-[13px] font-normal text-muted">{list.length}명</span></span> : null}>별점 · 한줄평</SectionTitle>
+      <SectionTitle right={avg ? <span className="inline-flex items-center gap-1 text-[13px] font-bold text-[#9A7428]"><CuteStar on size={13} />{avg.toFixed(1)}<span className="text-[12px] font-normal text-muted">{list.length}명</span></span> : null}>별점 · 한줄평</SectionTitle>
       <div className="rounded-2xl border border-line">
         {list.map(r => {
           const p = t.profileOf(r.user_id) || { nickname: '?', tint: '#EFEFEF' };
           return (
-            <div key={r.user_id} className="flex gap-3 px-4 py-3 border-b border-line">
-              <Avatar p={p} size={28} />
+            <div key={r.user_id} className="flex gap-2 px-3 py-2 border-b border-line">
+              <Avatar p={p} size={22} />
               <div className="flex-1 min-w-0">
-                <p className="flex items-center gap-2 text-[13px]"><span className="text-ink font-semibold">{p.nickname}</span><Stars n={r.stars} /></p>
-                {r.text && <p className="text-[15px] text-ink mt-0.5 leading-snug">{r.text}</p>}
+                <p className="flex items-center gap-1.5 text-[12px]"><span className="text-ink font-semibold">{p.nickname}</span><MiniStars n={r.stars} /></p>
+                {r.text && <p className="text-[13px] text-ink mt-0.5 leading-snug">{r.text}</p>}
               </div>
             </div>
           );
         })}
-        <div className="px-4 py-3.5">
-          <p className="text-[13px] font-medium text-sage mb-1">{profile?.nickname}의 평가</p>
-          <div className="flex items-center -ml-1" role="radiogroup" aria-label="별점">
-            {[1, 2, 3, 4, 5].map(n => (
-              <button key={n} type="button" role="radio" aria-checked={stars === n} aria-label={`${n}점`} onClick={() => setStars(n === stars ? 0 : n)}
-                className={`h-10 w-10 grid place-items-center text-[26px] leading-none rounded-full ${focus}`} style={{ color: n <= stars ? STAR : '#DADFD6' }}>★</button>
-            ))}
+        <div className="px-3 py-2.5">
+          <div className="flex items-center justify-between">
+            <p className="text-[12px] font-medium text-sage">{profile?.nickname}의 평가</p>
+            <div className="flex items-center" role="radiogroup" aria-label="별점">
+              {[1, 2, 3, 4, 5].map(n => (
+                <button key={n} type="button" role="radio" aria-checked={stars === n} aria-label={`${n}점`} onClick={() => setStars(n === stars ? 0 : n)}
+                  className={`h-8 w-7 grid place-items-center rounded-full active:scale-90 transition-transform ${focus}`}><CuteStar on={n <= stars} size={20} /></button>
+              ))}
+            </div>
           </div>
-          <div className="mt-1.5 flex gap-2">
+          <div className="mt-1.5 flex gap-1.5">
             <input value={text} maxLength={80} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') save(); }}
-              placeholder="한줄평 (예: 또 해줘! 간은 조금 싱겁게)" aria-label="한줄평" className={cls.input + ' rounded-full'} />
-            <button type="button" disabled={!stars || !changed} onClick={save} className={cls.primary + ' shrink-0'}>{mine ? '수정' : '남기기'}</button>
+              placeholder="한줄평 (예: 또 해줘! 간은 싱겁게)" aria-label="한줄평" className={cls.input + ' rounded-full !h-8 !text-[13px] !px-3'} />
+            <button type="button" disabled={!stars || !changed} onClick={save} className={cls.primary + ' shrink-0 !h-8 !px-3 !text-[12px]'}>{mine ? '수정' : '남기기'}</button>
           </div>
-          {mine && <button type="button" onClick={() => { t.setReview(recipe.id, dish.id, null); toast('내 평가를 지웠어요'); }} className="mt-1.5 text-[13px] text-faintink hover:text-[#9E4742] h-7">내 평가 지우기</button>}
+          {mine && <button type="button" onClick={() => { t.setReview(recipe.id, dish.id, null); toast('내 평가를 지웠어요'); }} className="mt-1 text-[12px] text-faintink hover:text-[#9E4742] h-6">내 평가 지우기</button>}
         </div>
       </div>
     </>
   );
 }
+
+// 동글동글한 별 (모서리가 둥근 별)
+const STAR_PATH = 'M12 3.2l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.5l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z';
+function CuteStar({ on, size = 14 }) {
+  const c = on ? STAR : '#DDE2DA';
+  return <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className="shrink-0"><path d={STAR_PATH} fill={c} stroke={c} strokeWidth="2.6" strokeLinejoin="round" /></svg>;
+}
+const MiniStars = ({ n }) => (
+  <span className="inline-flex items-center gap-[1px]" aria-label={`별 ${n}개`}>{[1, 2, 3, 4, 5].map(i => <CuteStar key={i} on={i <= n} size={11} />)}</span>
+);
