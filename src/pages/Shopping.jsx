@@ -6,11 +6,11 @@ import { PLACES, dday, foodEmoji, guessExpires, guessFood, placeOf } from '../li
 
 const TAB_KEY = 'shop-tab';
 const TONE = { r: 'bg-[#F7E3E0] text-[#A04A40]', y: 'bg-[#F6EED9] text-[#8A6A23]', g: 'bg-[#E6EEE3] text-[#4F6B4C]' };
-const rowCls = 'flex items-center gap-2.5 bg-white border border-line rounded-xl px-3 py-2';
+const rowCls = 'flex items-center gap-3 bg-white border border-line rounded-2xl px-3.5 py-3';
 
 // 재료 그림 칸 (보관 장소 색)
 const Tile = ({ name, place = 'fridge', dim }) => (
-  <span className={`h-[30px] w-[30px] shrink-0 grid place-items-center rounded-lg text-[16px] leading-none ${dim ? 'opacity-50' : ''}`} style={{ background: placeOf(place).bg }} aria-hidden="true">{foodEmoji(name)}</span>
+  <span className={`h-9 w-9 shrink-0 grid place-items-center rounded-[10px] text-[18px] leading-none ${dim ? 'opacity-50' : ''}`} style={{ background: placeOf(place).bg }} aria-hidden="true">{foodEmoji(name)}</span>
 );
 const GroupHead = ({ children, right }) => (
   <div className="flex items-center justify-between px-1 mt-2 mb-1 text-[12px] text-faintink">{children}{right}</div>
@@ -82,7 +82,7 @@ function Cart() {
         <RoundCheck checked={i.checked} onChange={() => check(i)} label={`${i.name} 샀어요`} disabled={!t.canWrite} />
         <Tile name={i.name} place={guessFood(i.name).place} dim={i.checked} />
         <div className="flex-1 min-w-0">
-          <p className={`text-[14px] truncate ${i.checked ? 'line-through text-faintink' : 'text-ink font-medium'}`}>{i.name}
+          <p className={`text-[15px] truncate ${i.checked ? 'line-through text-faintink' : 'text-ink font-medium'}`}>{i.name}
             <span className="ml-1.5 font-normal text-[12px] text-faintink tabular-nums">{[i.amount, i.unit].filter(Boolean).join(' ')}</span></p>
           <p className="text-[12px] text-faintink truncate">{from}{who ? ` · ${who}` : ''}</p>
         </div>
@@ -97,13 +97,13 @@ function Cart() {
       <GroupHead right={todo.length > 0 && <button type="button" onClick={copyList} className="inline-flex items-center gap-1 h-6 hover:text-ink"><Icon d={I.copy} size={12} />목록 복사</button>}>
         <span>살 것 {todo.length}</span>
       </GroupHead>
-      {todo.length ? <ul className="flex flex-col gap-1.5">{todo.map(i => <Row key={i.id} i={i} />)}</ul>
+      {todo.length ? <ul className="flex flex-col gap-2">{todo.map(i => <Row key={i.id} i={i} />)}</ul>
         : <p className="px-1 py-3 text-[13px] text-muted leading-relaxed">다 샀어요. 레시피 재료 옆 '장바구니'로 담거나 위에서 직접 추가하세요.</p>}
       {done.length > 0 && <>
         <GroupHead right={t.canWrite && <button type="button" onClick={t.clearChecked} className="h-6 hover:text-[#9E4742]">모두 지우기</button>}>
           <span>산 것 {done.length}</span>
         </GroupHead>
-        <ul className="flex flex-col gap-1.5">{done.map(i => <Row key={i.id} i={i} />)}</ul>
+        <ul className="flex flex-col gap-2">{done.map(i => <Row key={i.id} i={i} />)}</ul>
       </>}
       {t.canWrite && todo.length > 0 && <p className="mt-1 text-center text-[12px] text-faintink">산 것을 체크하면 냉장고로 들어가요</p>}
     </>
@@ -140,18 +140,18 @@ function Fridge() {
         return (
           <section key={p.id}>
             <GroupHead right={<span className="tabular-nums">{list.length}</span>}><span>{p.label}</span></GroupHead>
-            <ul className="flex flex-col gap-1.5">
+            <ul className="flex flex-col gap-2">
               {list.map(f => {
                 const dd = dday(f.expires);
                 const isOpen = open === f.id;
                 return (
-                  <li key={f.id} className="bg-white border border-line rounded-xl">
+                  <li key={f.id} className="bg-white border border-line rounded-2xl">
                     <button type="button" onClick={() => t.canWrite && setOpen(isOpen ? null : f.id)} aria-expanded={isOpen}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-left rounded-xl ${focus}`}>
+                      className={`w-full flex items-center gap-3 px-3.5 py-3 text-left rounded-2xl ${focus}`}>
                       <Tile name={f.name} place={f.place} />
-                      <span className="flex-1 min-w-0 text-[14px] text-ink font-medium truncate">{f.name}
+                      <span className="flex-1 min-w-0 text-[15px] text-ink font-medium truncate">{f.name}
                         {f.amount && <span className="ml-1.5 font-normal text-[12px] text-faintink">{f.amount}</span>}</span>
-                      {dd && <span className={`shrink-0 text-[11px] px-2 py-0.5 rounded-full ${TONE[dd.tone]}`}>{dd.label}</span>}
+                      {dd && <span className={`shrink-0 text-[12px] px-2.5 py-0.5 rounded-full ${TONE[dd.tone]}`}>{dd.label}</span>}
                     </button>
                     {isOpen && <FridgeEdit f={f} onEaten={() => eaten(f)} />}
                   </li>
@@ -172,7 +172,7 @@ function FridgeEdit({ f, onEaten }) {
   const [amount, setAmount] = useState(f.amount || '');
   const saveAmount = () => { if (amount.trim() !== (f.amount || '')) t.updateFridge(f, { amount: amount.trim().slice(0, 30) }); };
   return (
-    <div className="px-3 pb-3 pt-1 border-t border-line flex flex-col gap-2.5">
+    <div className="px-3.5 pb-3 pt-1 border-t border-line flex flex-col gap-2.5">
       <div className="flex items-center gap-2 pt-2">
         <span className="w-14 shrink-0 text-[12px] text-muted">보관</span>
         <div className="inline-flex rounded-full border border-line bg-canvas p-0.5">
