@@ -368,23 +368,24 @@ function DayNotes({ date }) {
   const time = iso => { const d = new Date(iso); return isNaN(d) ? '' : `${d.getHours() < 12 ? '오전' : '오후'} ${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')}`; };
   const mine = n => n.user_id === t.me;
   return (
-    <div className="mx-4 mb-3 pt-2.5 border-t border-dashed border-[#E1E6DD]">
+    <div className="mx-4 mb-3 pt-2.5 border-t border-dashed border-[#D6DCD2]">
+      <p className="mb-1.5 text-[12px] font-semibold text-sage">한마디{list.length > 0 && ` ${list.length}`}</p>
       {list.length > 0 && (
-        <ul className="mb-2 flex flex-col gap-1.5">
+        <ul className="mb-1 flex flex-col gap-1.5">
           {list.map(n => {
             const me = mine(n);
             const p = t.profileOf(n.user_id) || { nickname: '?' };
             const liked = n.likes?.includes(t.me);
             const likes = n.likes?.length || 0;
             return (
-              <li key={n.id} className={`flex flex-col ${me ? 'items-end' : 'items-start'}`}>
-                {!me && <span className="mb-0.5 ml-1 text-[12px] text-muted">{p.nickname}</span>}
-                <div className={`flex items-end gap-1 max-w-[88%] ${me ? 'flex-row-reverse' : ''}`}>
+              <li key={n.id} className="flex flex-col items-start">
+                <span className="mb-0.5 ml-1 text-[12px] text-muted">{p.nickname}{me && ' (나)'}</span>
+                <div className="flex items-end gap-1.5 max-w-[92%]">
                   <button type="button" onClick={() => t.toggleNoteLike(n)} aria-label={liked ? '좋아요 취소' : '좋아요'}
-                    className={`min-w-0 text-left px-3 py-1.5 text-[14px] leading-snug break-words ${me ? 'bg-sage-check text-white rounded-[12px_12px_4px_12px]' : 'bg-[#F2F4F0] text-ink rounded-[12px_12px_12px_4px]'}`}>
-                    {n.text}{likes > 0 && <span className={`ml-1 text-[12px] ${me ? 'text-white/85' : 'text-sage'}`}>👍{likes > 1 ? likes : ''}</span>}
+                    className={`min-w-0 text-left px-3 py-1.5 text-[14px] text-[#2D4538] leading-snug break-words rounded-[12px_12px_12px_4px] ${me ? 'bg-[#DCE8D6]' : 'bg-[#EEF3EA]'}`}>
+                    {n.text}{likes > 0 && <span className="ml-1 text-[12px] text-sage">👍{likes > 1 ? likes : ''}</span>}
                   </button>
-                  <span className={`shrink-0 flex flex-col text-[11px] leading-tight text-faintink ${me ? 'items-end' : 'items-start'}`}>
+                  <span className="shrink-0 flex flex-col items-start text-[11px] leading-tight text-faintink">
                     {(me || t.canWrite) && <button type="button" onClick={() => t.deleteNote(n)} className="hover:text-[#9E4742]">지우기</button>}
                     <span>{time(n.created_at)}</span>
                   </span>
@@ -394,13 +395,13 @@ function DayNotes({ date }) {
           })}
         </ul>
       )}
-      <form onSubmit={send} className="flex items-center gap-1.5 rounded-full bg-[#F4F6F2] pl-3.5 pr-1 py-1">
+      <form onSubmit={send} className="flex items-center gap-2 border-b border-[#C9D6C4] focus-within:border-sage">
         <input value={text} onChange={e => setText(e.target.value)} maxLength={200} autoComplete="off" name="day-note-nofill" enterKeyHint="send"
-          placeholder={list.length ? '메시지…' : '한마디 남기기 · 이날 메뉴 바꿔요 🙏'} aria-label="한마디 남기기"
-          className="flex-1 min-w-0 h-8 bg-transparent text-[14px] placeholder:text-faintink focus:outline-none" />
-        <button type="submit" disabled={!text.trim()} aria-label="보내기" className={`shrink-0 h-8 w-8 grid place-items-center rounded-full bg-sage text-white disabled:opacity-35 ${focus}`}><Icon d="M12 19V5|M5 12l7-7 7 7" size={15} sw={2.2} /></button>
+          placeholder={list.length ? '한마디 남기기…' : '한마디 남기기 · 이날 메뉴 바꿔요 🙏'} aria-label="한마디 남기기"
+          className="flex-1 min-w-0 h-9 bg-transparent px-0.5 text-[14px] placeholder:text-faintink focus:outline-none" />
+        <button type="submit" disabled={!text.trim()} className="shrink-0 h-9 px-1 text-[13px] font-semibold text-sage disabled:opacity-40">보내기</button>
       </form>
-      {list.length > 0 && <p className="mt-1 ml-1 text-[11px] text-faintink">말풍선을 누르면 👍</p>}
+      {list.length > 0 && <p className="mt-1 ml-0.5 text-[11px] text-faintink">말풍선을 누르면 👍</p>}
     </div>
   );
 }
