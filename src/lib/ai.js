@@ -82,8 +82,8 @@ export async function fetchPhoto(supabase, url) {
 }
 
 // 내 사진 올리기 → 주소
-export async function uploadPhoto(supabase, file) {
-  const { data } = await shrinkImage(file, 900);
+export async function uploadPhoto(supabase, file, max = 900) {
+  const { data } = await shrinkImage(file, max);
   const blob = await (await fetch(`data:image/jpeg;base64,${data}`)).blob();
   const path = `u/${(crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(16).slice(2))}.jpg`;
   const { error } = await supabase.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
