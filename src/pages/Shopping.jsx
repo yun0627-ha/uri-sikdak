@@ -165,13 +165,12 @@ function Fridge() {
           <section key={p.id}>
             {p.fold ? (
               <button type="button" onClick={() => toggleFold(p.id)} aria-expanded={!folded}
-                className={`w-full flex items-center justify-between mt-3 px-3.5 py-3 rounded-2xl bg-white border border-line text-left ${focus}`}>
-                <span className="flex items-center gap-3"><span className="h-9 w-9 grid place-items-center rounded-[10px] text-[18px] leading-none" style={{ background: p.bg }} aria-hidden="true">🧂</span>
-                  <span className="text-[15px] text-ink font-medium">{p.label} <span className="ml-0.5 font-normal text-[12px] text-faintink tabular-nums">{list.length}</span></span></span>
-                <span className="inline-flex items-center gap-0.5 text-[12px] text-faintink">{folded ? '펼치기' : '접기'}<Icon d={I.down} size={14} className={`transition-transform ${folded ? '' : 'rotate-180'}`} /></span>
+                className={`w-full flex items-center justify-between px-1 mt-3 mb-1 h-7 text-[12px] text-faintink rounded-lg ${focus}`}>
+                <span>{p.label} <span className="tabular-nums">{list.length}</span></span>
+                <span className="inline-flex items-center gap-0.5">{folded ? '펼치기' : '접기'}<Icon d={I.down} size={13} className={`transition-transform ${folded ? '' : 'rotate-180'}`} /></span>
               </button>
             ) : <GroupHead right={<span className="tabular-nums">{list.length}</span>}><span>{p.label}</span></GroupHead>}
-            {!folded && <ul className={`flex flex-col gap-2 ${p.fold ? 'mt-2' : ''}`}>
+            {!folded && <ul className="flex flex-col gap-2">
               {list.map(f => {
                 const dd = dday(f.expires);
                 const isOpen = open === f.id;
