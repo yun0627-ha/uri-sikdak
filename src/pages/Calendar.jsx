@@ -170,11 +170,11 @@ function StartGuide({ onOpenTray }) {
   );
 }
 
-// 칩: 메뉴 이름 (두 줄까지 보이고, 넘치면 … 으로)
+// 칩: 메뉴 이름 (무조건 한 줄, 넘치면 잘라요)
 function EventChip({ e }) {
   const c = useTable().getCat(e.category_id);
   return (
-    <span className="block w-full rounded-md px-[3px] py-[3px] text-[11px] sm:text-[12px] font-semibold leading-[1.25] text-center break-all line-clamp-2"
+    <span className="block w-full rounded-md px-[4px] py-[3px] text-[10px] sm:text-[11px] font-semibold leading-[1.3] text-left whitespace-nowrap overflow-hidden"
       style={{ background: c.bg, color: c.fg }} title={`${c.label} · ${e.title}`}>{e.title}</span>
   );
 }
