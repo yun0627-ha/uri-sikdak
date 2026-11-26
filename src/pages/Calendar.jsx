@@ -21,12 +21,10 @@ export default function Calendar() {
   const [cursor, setCursor] = useState(() => new Date());
   const [selected, setSelected] = useState(today);
   const [sheet, setSheet] = useState(null);
-  // 레시피 서랍: 화면 아래에 떠서 달력과 함께 보여요. 칩을 위로 끌어 날짜에 놓거나, 칩 → 날짜 순서로 누르기
+  // 먹고싶어요 → '달력에' 누른 뒤 날짜를 누르면 그날 저녁(없으면 첫 끼니)으로 들어가요
   const meals = t.categories.filter(c => c.grp === 'meal');
-  const [trayOpen, setTrayOpen] = useState(false);
-  const [trayCat, setTrayCat] = useState(() => (meals.find(c => c.label === '저녁') || meals[0])?.id || null);
+  const trayCat = (meals.find(c => c.label === '저녁') || meals[0])?.id || null;
   const [armed, setArmed] = useState(null);
-  const [drag, setDrag] = useState(null);
   const calRef = useRef(null);
   const [wishOpen, setWishOpen] = useState(false);
   const wish = useWishBuckets();
@@ -50,7 +48,7 @@ export default function Calendar() {
   }, [t.shopping, t.settings.showShopOnCalendar]);
 
   const dropOn = async (date, item) => {
-    if (!trayCat || !t.categories.some(c => c.id === trayCat)) { toast('서랍 위에서 넣을 끼니를 먼저 골라 주세요.'); return; }
+    if (!trayCat) { toast('끼니 카테고리가 없어요. 설정에서 추가해 주세요.'); return; }
     const cat = t.getCat(trayCat);
     const ev = await t.addEvent({ date, category_id: trayCat, title: item.d.title, recipe_id: item.r?.id || null, dish_id: item.r ? item.d.id : null });
     if (ev) toast(`${shortDate(date)} ${cat.label}에 '${item.d.title}'`, { label: '되돌리기', fn: () => t.deleteEvent(ev) });
@@ -59,14 +57,14 @@ export default function Calendar() {
   const select = k => {
     if (armed) { dropOn(k, armed); setArmed(null); return; }
     setSelected(k);
-    if (!trayOpen && window.innerWidth < 1024) setTimeout(() => document.getElementById('day-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 30);
+    if (window.innerWidth < 1024) setTimeout(() => document.getElementById('day-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 30);
   };
   const placeWish = w => {
     const m = findRecipeFor(t.recipes, w.title);
     setArmed({ key: `wish-${w.id}`, r: m?.r || null, d: m?.d || { title: w.title }, wish: w });
     setWishOpen(false);
   };
-  const openTray = () => { setTrayOpen(true); calRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  const openAdd = () => setSheet({ date: selected });
 
   const move = dir => setCursor(c => view === 'month' ? new Date(c.getFullYear(), c.getMonth() + dir, 1) : addDays(c, dir * 14));
   const start = view === 'month' ? startOfWeek(new Date(cursor.getFullYear(), cursor.getMonth(), 1), ws) : startOfWeek(cursor, ws);
@@ -85,9 +83,9 @@ export default function Calendar() {
   const monthOut = eatCat ? monthEvs.filter(e => e.category_id === eatCat.id).length : 0;
 
   return (
-    <div className={`grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] items-start ${trayOpen ? 'pb-40' : ''}`}>
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] items-start">
       <section aria-label="식단 캘린더" className="px-1 sm:px-2" ref={calRef}>
-        <StartGuide onOpenTray={openTray} />
+        <StartGuide onAdd={openAdd} />
         <div className="mb-3 grid grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-1.5">
           <Link to="stats" className={`flex items-center justify-between gap-1 rounded-xl bg-white/70 border border-line px-3 h-9 text-[12px] whitespace-nowrap text-muted hover:border-[#C5D2C0] ${focus}`}>
             <span className="truncate"><b className="text-ink font-semibold">{Number(ym.slice(5))}월</b> · 식사 {monthMeals}끼{eatCat ? ` · ${eatCat.label.split('/')[0]} ${monthOut}` : ''}</span>
@@ -125,7 +123,7 @@ export default function Calendar() {
                 const k = toKey(d);
                 return <DayCell key={k} d={d} k={k} inMonth={view !== 'month' || d.getMonth() === cursor.getMonth()} past={k < today} today={today}
                   list={byDate[k] || []} shop={shopByDate[k] || 0} notes={noteByDate[k] || 0} selected={selected} month={view === 'month'} onSelect={select}
-                  armed={!!armed} over={drag?.over === k}
+                  armed={!!armed}
                   onOpenRecipe={(rid, did) => nav(`recipes/${rid}?d=${encodeURIComponent(did || '')}`)} />;
               })}
             </div>
@@ -135,40 +133,29 @@ export default function Calendar() {
       </section>
 
       <div id="day-panel">
-        <DayPanel date={selected} onAdd={() => setSheet({ date: selected })} onOpenTray={openTray} trayOpen={trayOpen} />
+        <DayPanel date={selected} onAdd={openAdd} />
       </div>
 
-      {t.canWrite && !(armed?.wish && !trayOpen) && (trayOpen
-        ? <RecipeTray trayCat={trayCat} setTrayCat={setTrayCat} meals={meals} armed={armed} setArmed={setArmed} setDrag={setDrag} onDrop={dropOn} onClose={() => { setTrayOpen(false); setArmed(null); }} />
-        : <button type="button" onClick={openTray} className={`fixed z-30 right-4 bottom-[80px] sm:bottom-24 inline-flex items-center gap-1.5 h-11 pl-3.5 pr-4 rounded-full bg-sage text-white text-[13px] font-semibold shadow-[0_10px_30px_-10px_rgba(46,53,47,.5)] hover:bg-sage-dark ${focus}`}>
-            <Icon d={I.book} size={16} />레시피 서랍
-          </button>)}
-
-      {armed?.wish && !trayOpen && (
+      {armed?.wish && (
         <div className="fade-in fixed z-30 inset-x-3 bottom-[84px] sm:left-1/2 sm:-translate-x-1/2 sm:w-[420px] flex items-center gap-2 rounded-2xl bg-ink text-white pl-4 pr-2 py-2 text-[13px] shadow-lg">
           <span className="flex-1 min-w-0 truncate">'{armed.d.title}' · 넣을 날짜를 누르세요 <span className="text-white/60">({t.getCat(trayCat).label})</span></span>
           <button type="button" onClick={() => { setArmed(null); setWishOpen(true); }} className="shrink-0 h-8 px-3 rounded-full bg-white/15 text-[12px]">취소</button>
         </div>
       )}
       {wishOpen && <WishSheet onClose={() => setWishOpen(false)} onPlace={placeWish} />}
-      {drag && (
-        <div className="fixed z-[60] pointer-events-none -translate-x-1/2 -translate-y-[130%] rounded-full bg-ink text-white text-[13px] px-3.5 py-2 shadow-lg" style={{ left: drag.x, top: drag.y }}>
-          {drag.item.d.title}{drag.over ? ` → ${shortDate(drag.over)}` : ''}
-        </div>
-      )}
       {sheet && <AddSheet date={sheet.date} onClose={() => setSheet(null)} />}
     </div>
   );
 }
 
 // 처음 만든 식탁: 3단계 안내 (다 하면 사라져요)
-function StartGuide({ onOpenTray }) {
+function StartGuide({ onAdd }) {
   const t = useTable();
   const key = `guide-done-${t.table.id}`;
   const [hidden, setHidden] = useState(() => { try { return !!localStorage.getItem(key); } catch (e) { return false; } });
   const steps = [
     { done: t.recipes.length > 0, title: '레시피 넣기', sub: "레시피 탭 › '새 레시피'", to: 'recipes' },
-    { done: t.events.length > 0, title: '달력에 놓기', sub: '레시피 서랍에서 날짜로', action: onOpenTray },
+    { done: t.events.length > 0, title: '달력에 놓기', sub: '날짜 누르고 추가', action: onAdd },
     { done: t.members.length > 1, title: '가족 초대', sub: '설정 › 가족 초대 QR', to: 'settings' },
   ];
   const allDone = steps.every(s => s.done);
@@ -206,7 +193,7 @@ function EventChip({ e }) {
 }
 
 // 날짜 한 칸. 2주: 메뉴 칩 / 한 달: 끼니 색 점(선택하면 칩)
-function DayCell({ d, k, inMonth, list, shop, notes, today, selected, onSelect, onOpenRecipe, month, past, armed, over }) {
+function DayCell({ d, k, inMonth, list, shop, notes, today, selected, onSelect, onOpenRecipe, month, past, armed }) {
   const t = useTable();
   const sel = k === selected, isToday = k === today, dow = d.getDay();
   const showChips = !month || sel;
@@ -217,7 +204,7 @@ function DayCell({ d, k, inMonth, list, shop, notes, today, selected, onSelect, 
     <div role="button" tabIndex={0} data-date={k} aria-pressed={sel} aria-label={`${labelDate(k)}, ${list.length ? list.map(e => e.title).join(', ') : '비어 있음'}${notes ? `, 한마디 ${notes}개` : ''}`}
       onClick={() => onSelect(k)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(k); } }}
       className={`relative flex flex-col items-center rounded-[14px] px-[2px] sm:px-1 pt-1 pb-2 cursor-pointer transition-colors ${month ? 'min-h-[52px] sm:min-h-[76px]' : 'min-h-[108px] sm:min-h-[150px]'}
-        ${over ? 'bg-sage-soft ring-2 ring-sage' : sel ? 'bg-[#E8ECE4]' : armed ? 'hover:bg-sage-soft' : 'hover:bg-white/70'} ${armed && !over ? 'outline outline-1 outline-dashed outline-[#C9D1C6]' : ''} ${focus}`}>
+        ${sel ? 'bg-[#E8ECE4]' : armed ? 'hover:bg-sage-soft' : 'hover:bg-white/70'} ${armed ? 'outline outline-1 outline-dashed outline-[#C9D1C6]' : ''} ${focus}`}>
       <span className={`relative grid place-items-center h-7 w-7 sm:h-8 sm:w-8 rounded-full text-[14px] sm:text-[15px] tabular-nums ${isToday ? 'bg-sage-check text-white font-bold' : `${numColor} font-semibold ${(!inMonth || past) && !sel ? 'opacity-35' : ''}`}`}>{d.getDate()}{notes > 0 && <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-[#F7F8F5]" style={{ background: NOTE_DOT }} aria-hidden="true" />}</span>
       {showChips ? (
         <span className={`mt-1 flex flex-col gap-[3px] w-full ${!inMonth && !sel ? 'opacity-40' : past && !sel ? 'opacity-70' : ''}`}>
@@ -238,75 +225,8 @@ function DayCell({ d, k, inMonth, list, shop, notes, today, selected, onSelect, 
   );
 }
 
-// 레시피 서랍 (화면 아래에 떠 있음)
-function RecipeTray({ trayCat, setTrayCat, meals, armed, setArmed, setDrag, onDrop, onClose }) {
-  const t = useTable();
-  const items = useMemo(() => {
-    const all = t.recipes.flatMap(r => r.dishes.map(d => ({ r, d, key: `${r.id}|${d.id}` })));
-    const recent = [...t.events].filter(e => e.recipe_id).sort((a, b) => b.date.localeCompare(a.date)).map(e => `${e.recipe_id}|${e.dish_id}`);
-    const rank = x => (t.isFav(x.r.id, x.d.id) ? 0 : 1000) + (recent.indexOf(x.key) === -1 ? 500 : recent.indexOf(x.key));
-    return all.sort((a, b) => rank(a) - rank(b)).slice(0, 30);
-  }, [t.recipes, t.events, t.favorites]);
-  const g = useRef(null);
-
-  const down = (e, item) => { g.current = { item, x0: e.clientX, y0: e.clientY, dragging: false, id: e.pointerId, el: e.currentTarget }; };
-  const moveP = e => {
-    const s = g.current; if (!s || s.id !== e.pointerId) return;
-    const dx = e.clientX - s.x0, dy = e.clientY - s.y0;
-    if (!s.dragging) {
-      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { s.dragging = true; try { s.el.setPointerCapture(e.pointerId); } catch (er) { /* 무시 */ } setArmed(null); }
-      else return;
-    }
-    e.preventDefault();
-    const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-date]')?.getAttribute('data-date') || null;
-    setDrag({ item: s.item, x: e.clientX, y: e.clientY, over });
-  };
-  const up = e => {
-    const s = g.current; g.current = null;
-    if (!s || s.id !== e.pointerId) return;
-    if (s.dragging) {
-      const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-date]')?.getAttribute('data-date');
-      setDrag(null);
-      if (over) onDrop(over, s.item);
-    } else setArmed(a => a && a.key === s.item.key ? null : s.item);
-  };
-  const cancel = () => { g.current = null; setDrag(null); };
-
-  return (
-    <div className="fixed z-30 inset-x-0 bottom-[76px] sm:bottom-24 px-2 sm:px-0 sm:left-1/2 sm:-translate-x-1/2 sm:w-[600px]">
-      <div className="fade-in rounded-[24px] border border-line bg-white/95 backdrop-blur px-3 sm:px-4 pt-3 pb-3 shadow-[0_-10px_40px_-15px_rgba(46,53,47,.35)]">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex gap-1 overflow-x-auto no-scrollbar" role="radiogroup" aria-label="넣을 끼니">
-            {meals.map(c => (
-              <button key={c.id} type="button" role="radio" aria-checked={trayCat === c.id} onClick={() => setTrayCat(c.id)}
-                className={`shrink-0 h-8 px-3 rounded-full text-[13px] border ${trayCat === c.id ? 'font-semibold border-transparent' : 'border-line text-muted'}`}
-                style={trayCat === c.id ? { background: c.bg, color: c.fg } : undefined}>{c.label}</button>
-            ))}
-          </div>
-          <IconButton label="서랍 닫기" onClick={onClose} className="shrink-0"><Icon d={I.x} size={17} /></IconButton>
-        </div>
-        <p className="mt-1 text-[13px] text-muted">{armed ? <b className="text-sage">'{armed.d.title}' — 넣을 날짜를 누르세요</b> : '칩을 위로 끌어 날짜에 놓거나, 칩을 누르고 날짜를 누르세요'}</p>
-        {items.length ? (
-          <div className="mt-2 flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-            {items.map(it => {
-              const on = armed?.key === it.key;
-              return (
-                <button key={it.key} type="button" onPointerDown={e => down(e, it)} onPointerMove={moveP} onPointerUp={up} onPointerCancel={cancel}
-                  style={{ touchAction: 'pan-x' }} aria-pressed={on}
-                  className={`shrink-0 select-none h-10 px-4 rounded-full text-[14px] border transition-colors ${on ? 'bg-sage text-white border-sage' : 'bg-canvas border-line text-ink hover:border-sage'}`}>
-                  {t.isFav(it.r.id, it.d.id) && <span className={on ? 'text-white mr-1' : 'text-[#C0524C] mr-1'}>♥</span>}{it.d.title}
-                </button>
-              );
-            })}
-          </div>
-        ) : <p className="mt-2 text-[13px] text-faintink">레시피를 저장하면 여기에 나와요.</p>}
-      </div>
-    </div>
-  );
-}
-
 // 선택한 날짜의 끼니 목록 — 오른쪽에 누가 올린 메뉴인지
-function DayPanel({ date, onAdd, onOpenTray, trayOpen }) {
+function DayPanel({ date, onAdd }) {
   const t = useTable();
   const toast = useToast();
   const nav = useNavigate();
@@ -346,7 +266,7 @@ function DayPanel({ date, onAdd, onOpenTray, trayOpen }) {
       ) : (
         <div className="px-5 pb-5 pt-1 text-[13px] text-muted leading-relaxed">
           아직 등록된 식단이 없어요.
-          {t.canWrite && !trayOpen && <button type="button" onClick={onOpenTray} className="mt-2 flex items-center gap-1 text-sage"><Icon d={I.book} size={15} />레시피 서랍에서 끌어다 놓기</button>}
+          {t.canWrite && <button type="button" onClick={onAdd} className="mt-2 flex items-center gap-1 text-sage"><Icon d={I.plus} size={15} />메뉴 추가하기</button>}
         </div>
       )}
       <DayNotes date={date} />
@@ -397,7 +317,7 @@ function DayNotes({ date }) {
       )}
       <form onSubmit={send} className="flex items-center gap-2 border-b border-[#C9D6C4] focus-within:border-sage">
         <input value={text} onChange={e => setText(e.target.value)} maxLength={200} autoComplete="off" name="day-note-nofill" enterKeyHint="send"
-          placeholder={list.length ? '한마디 남기기…' : '한마디 남기기 · 이날 메뉴 바꿔요 🙏'} aria-label="한마디 남기기"
+          placeholder={list.length ? '한마디 남기기…' : '한마디 남기기 · 이날 메뉴 바꿔요'} aria-label="한마디 남기기"
           className="flex-1 min-w-0 h-9 bg-transparent px-0.5 text-[14px] placeholder:text-faintink focus:outline-none" />
         <button type="submit" disabled={!text.trim()} className="shrink-0 h-9 px-1 text-[13px] font-semibold text-sage disabled:opacity-40">보내기</button>
       </form>
