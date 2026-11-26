@@ -273,7 +273,7 @@ export default function RecipeForm({ recipe, initial, onClose, onSaved, onDelete
         )}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 bg-[#FAFAF7]/95 backdrop-blur border-t border-line px-3 py-2.5" style={{ paddingBottom: 'calc(10px + env(safe-area-inset-bottom))' }}>
+      <div className="kb-hide fixed inset-x-0 bottom-0 bg-[#FAFAF7]/95 backdrop-blur border-t border-line px-3 py-2.5" style={{ paddingBottom: 'calc(10px + env(safe-area-inset-bottom))' }}>
         <div className="mx-auto max-w-[640px] flex gap-2">
           <button type="button" onClick={onClose} className="h-11 px-5 rounded-xl border border-line bg-white text-[14px]">취소</button>
           <button type="button" onClick={() => save(false)} disabled={saving} className="flex-1 h-11 rounded-xl bg-sage text-white text-[14px] font-semibold disabled:opacity-40">{saving ? '저장 중…' : drafts.length > 1 ? '한 레시피로 저장' : '저장하기'}</button>
