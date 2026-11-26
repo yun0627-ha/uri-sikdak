@@ -378,13 +378,13 @@ function DayNotes({ date }) {
             const likes = n.likes?.length || 0;
             return (
               <li key={n.id} className={`flex flex-col ${me ? 'items-end' : 'items-start'}`}>
-                {!me && <span className="mb-0.5 ml-1 text-[11px] text-muted">{p.nickname}</span>}
+                {!me && <span className="mb-0.5 ml-1 text-[12px] text-muted">{p.nickname}</span>}
                 <div className={`flex items-end gap-1 max-w-[88%] ${me ? 'flex-row-reverse' : ''}`}>
                   <button type="button" onClick={() => t.toggleNoteLike(n)} aria-label={liked ? '좋아요 취소' : '좋아요'}
-                    className={`min-w-0 text-left px-2.5 py-1 text-[13px] leading-snug break-words ${me ? 'bg-sage-check text-white rounded-[12px_12px_4px_12px]' : 'bg-[#F2F4F0] text-ink rounded-[12px_12px_12px_4px]'}`}>
-                    {n.text}{likes > 0 && <span className={`ml-1 text-[11px] ${me ? 'text-white/85' : 'text-sage'}`}>👍{likes > 1 ? likes : ''}</span>}
+                    className={`min-w-0 text-left px-3 py-1.5 text-[14px] leading-snug break-words ${me ? 'bg-sage-check text-white rounded-[12px_12px_4px_12px]' : 'bg-[#F2F4F0] text-ink rounded-[12px_12px_12px_4px]'}`}>
+                    {n.text}{likes > 0 && <span className={`ml-1 text-[12px] ${me ? 'text-white/85' : 'text-sage'}`}>👍{likes > 1 ? likes : ''}</span>}
                   </button>
-                  <span className={`shrink-0 flex flex-col text-[10px] leading-tight text-faintink ${me ? 'items-end' : 'items-start'}`}>
+                  <span className={`shrink-0 flex flex-col text-[11px] leading-tight text-faintink ${me ? 'items-end' : 'items-start'}`}>
                     {(me || t.canWrite) && <button type="button" onClick={() => t.deleteNote(n)} className="hover:text-[#9E4742]">지우기</button>}
                     <span>{time(n.created_at)}</span>
                   </span>
@@ -397,10 +397,10 @@ function DayNotes({ date }) {
       <form onSubmit={send} className="flex items-center gap-1.5 rounded-full bg-[#F4F6F2] pl-3.5 pr-1 py-1">
         <input value={text} onChange={e => setText(e.target.value)} maxLength={200} autoComplete="off" name="day-note-nofill" enterKeyHint="send"
           placeholder={list.length ? '메시지…' : '한마디 남기기 · 이날 메뉴 바꿔요 🙏'} aria-label="한마디 남기기"
-          className="flex-1 min-w-0 h-7 bg-transparent text-[13px] placeholder:text-faintink focus:outline-none" />
-        <button type="submit" disabled={!text.trim()} aria-label="보내기" className={`shrink-0 h-7 w-7 grid place-items-center rounded-full bg-sage text-white disabled:opacity-35 ${focus}`}><Icon d="M12 19V5|M5 12l7-7 7 7" size={14} sw={2.2} /></button>
+          className="flex-1 min-w-0 h-8 bg-transparent text-[14px] placeholder:text-faintink focus:outline-none" />
+        <button type="submit" disabled={!text.trim()} aria-label="보내기" className={`shrink-0 h-8 w-8 grid place-items-center rounded-full bg-sage text-white disabled:opacity-35 ${focus}`}><Icon d="M12 19V5|M5 12l7-7 7 7" size={15} sw={2.2} /></button>
       </form>
-      {list.length > 0 && <p className="mt-1 ml-1 text-[10px] text-faintink">말풍선을 누르면 👍</p>}
+      {list.length > 0 && <p className="mt-1 ml-1 text-[11px] text-faintink">말풍선을 누르면 👍</p>}
     </div>
   );
 }
