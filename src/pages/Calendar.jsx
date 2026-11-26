@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTable, editorsOf } from '../hooks/useTable.jsx';
-import { Avatar, ByLine, cls, focus, Icon, I, IconButton, Pill, useToast } from '../components/ui.jsx';
+import { ByLine, cls, focus, Icon, I, IconButton, Pill, useToast } from '../components/ui.jsx';
 import AddSheet from '../components/AddSheet.jsx';
 import WishSheet, { useWishBuckets, findRecipeFor } from '../components/WishSheet.jsx';
 import { WEEKDAYS, SHOP_COLOR } from '../lib/constants.js';
@@ -365,37 +365,42 @@ function DayNotes({ date }) {
     const v = text; setText('');
     await t.addNote(date, v);
   };
-  const time = iso => { const d = new Date(iso); return isNaN(d) ? '' : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+  const time = iso => { const d = new Date(iso); return isNaN(d) ? '' : `${d.getHours() < 12 ? '오전' : '오후'} ${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')}`; };
+  const mine = n => n.user_id === t.me;
   return (
-    <div className="mx-3 mb-3 rounded-2xl bg-sage-faint border border-[#E1E8DD] px-3 py-2.5">
-      <p className="flex items-center gap-1.5 text-[12px] font-semibold text-sage"><Icon d={I.edit} size={12} />한마디{list.length > 0 && <span className="font-normal text-muted">{list.length}</span>}</p>
+    <div className="mx-4 mb-3 pt-2.5 border-t border-dashed border-[#E1E6DD]">
       {list.length > 0 && (
-        <ul className="mt-1.5 flex flex-col gap-1.5">
+        <ul className="mb-2 flex flex-col gap-1.5">
           {list.map(n => {
-            const p = t.profileOf(n.user_id) || { nickname: '?', tint: '#EFEFEF' };
+            const me = mine(n);
+            const p = t.profileOf(n.user_id) || { nickname: '?' };
             const liked = n.likes?.includes(t.me);
+            const likes = n.likes?.length || 0;
             return (
-              <li key={n.id} className="flex items-start gap-1.5">
-                <Avatar p={p} size={20} />
-                <div className="min-w-0 flex-1">
-                  <div className="inline-block max-w-full rounded-[4px_12px_12px_12px] bg-white border border-line px-2.5 py-1 text-[15px] text-ink leading-snug break-words">{n.text}</div>
-                  <div className="mt-0.5 flex items-center gap-2 text-[11px] text-faintink">
-                    <span>{p.nickname} · {time(n.created_at)}</span>
-                    <button type="button" onClick={() => t.toggleNoteLike(n)} aria-pressed={liked} className={liked ? 'text-sage font-semibold' : 'hover:text-sage'}>👍 {n.likes?.length || ''}</button>
-                    {(n.user_id === t.me || t.canWrite) && <button type="button" onClick={() => t.deleteNote(n)} className="hover:text-[#9E4742]">지우기</button>}
-                  </div>
+              <li key={n.id} className={`flex flex-col ${me ? 'items-end' : 'items-start'}`}>
+                {!me && <span className="mb-0.5 ml-1 text-[11px] text-muted">{p.nickname}</span>}
+                <div className={`flex items-end gap-1 max-w-[88%] ${me ? 'flex-row-reverse' : ''}`}>
+                  <button type="button" onClick={() => t.toggleNoteLike(n)} aria-label={liked ? '좋아요 취소' : '좋아요'}
+                    className={`min-w-0 text-left px-2.5 py-1 text-[13px] leading-snug break-words ${me ? 'bg-sage-check text-white rounded-[12px_12px_4px_12px]' : 'bg-[#F2F4F0] text-ink rounded-[12px_12px_12px_4px]'}`}>
+                    {n.text}{likes > 0 && <span className={`ml-1 text-[11px] ${me ? 'text-white/85' : 'text-sage'}`}>👍{likes > 1 ? likes : ''}</span>}
+                  </button>
+                  <span className={`shrink-0 flex flex-col text-[10px] leading-tight text-faintink ${me ? 'items-end' : 'items-start'}`}>
+                    {(me || t.canWrite) && <button type="button" onClick={() => t.deleteNote(n)} className="hover:text-[#9E4742]">지우기</button>}
+                    <span>{time(n.created_at)}</span>
+                  </span>
                 </div>
               </li>
             );
           })}
         </ul>
       )}
-      <form onSubmit={send} className="mt-2 flex gap-1.5">
+      <form onSubmit={send} className="flex items-center gap-1.5 rounded-full bg-[#F4F6F2] pl-3.5 pr-1 py-1">
         <input value={text} onChange={e => setText(e.target.value)} maxLength={200} autoComplete="off" name="day-note-nofill" enterKeyHint="send"
-          placeholder={list.length ? '답하기…' : '예: 이날 메뉴 바꿔요 🙏 · 치킨 어때?'} aria-label="한마디 남기기"
-          className="flex-1 min-w-0 h-9 rounded-full border border-line bg-white px-3 text-[15px] placeholder:text-faintink focus:outline-none focus:border-sage" />
-        <button type="submit" disabled={!text.trim()} className={`shrink-0 h-9 px-3.5 rounded-full bg-sage text-white text-[13px] font-medium disabled:opacity-40 ${focus}`}>보내기</button>
+          placeholder={list.length ? '메시지…' : '한마디 남기기 · 이날 메뉴 바꿔요 🙏'} aria-label="한마디 남기기"
+          className="flex-1 min-w-0 h-7 bg-transparent text-[13px] placeholder:text-faintink focus:outline-none" />
+        <button type="submit" disabled={!text.trim()} aria-label="보내기" className={`shrink-0 h-7 w-7 grid place-items-center rounded-full bg-sage text-white disabled:opacity-35 ${focus}`}><Icon d="M12 19V5|M5 12l7-7 7 7" size={14} sw={2.2} /></button>
       </form>
+      {list.length > 0 && <p className="mt-1 ml-1 text-[10px] text-faintink">말풍선을 누르면 👍</p>}
     </div>
   );
 }
