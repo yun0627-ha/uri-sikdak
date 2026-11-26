@@ -4,7 +4,7 @@ import { EditingBanner, Icon, I, Spinner, focus, useToast } from './ui.jsx';
 import { RECIPE_TYPES } from '../lib/constants.js';
 import { clone, detectSource, emptyDish, uid } from '../lib/utils.js';
 import { autoParse, fetchPhoto, shrinkImage, uploadPhoto } from '../lib/ai.js';
-import Thumb from './Thumb.jsx';
+import { photosOf } from '../lib/photoPref.js';
 import { supabase } from '../lib/supabase.js';
 
 // 작은 글씨용 공통 스타일
@@ -34,9 +34,9 @@ export function textToSteps(text) {
   return parts.map(s => s.replace(/\s*\n\s*/g, ' ').trim()).filter(Boolean);
 }
 
-const toDraft = d => ({ id: d.id || uid('d'), photo: d.photo || '', title: d.title || '', type: d.type || 'main', servings: d.servings || 2, tags: d.tags || [],
+const toDraft = d => ({ id: d.id || uid('d'), photos: photosOf(d), title: d.title || '', type: d.type || 'main', servings: d.servings || 2, tags: d.tags || [],
   ing: ingToText(d.ingredients || []), steps: stepsToText(d.steps || []), memo: [d.tips?.cooking, d.tips?.tools, d.tips?.memo].filter(Boolean).join('\n') });
-const fromDraft = d => ({ id: d.id, photo: d.photo || '', title: d.title.trim(), type: d.type, servings: d.servings, tags: d.tags,
+const fromDraft = d => ({ id: d.id, photo: d.photos[0] || '', photos: d.photos, title: d.title.trim(), type: d.type, servings: d.servings, tags: d.tags,
   ingredients: textToIng(d.ing), steps: textToSteps(d.steps), tips: { cooking: '', tools: '', memo: d.memo.trim() } });
 
 function Grow({ value, onChange, placeholder, minRows = 4, ...rest }) {
@@ -93,23 +93,30 @@ export default function RecipeForm({ recipe, initial, onClose, onSaved }) {
   const analyze = async files => {
     setBusy(true); setErr('');
     try {
-      const images = files ? await Promise.all([...files].slice(0, 4).map(f => shrinkImage(f))) : null;
+      const list = files ? [...files].slice(0, 4) : null;
+      const images = list ? await Promise.all(list.map(f => shrinkImage(f))) : null;
+      // 캡처는 레시피 사진으로도 저장 (상세 화면에서 전부 보이게)
+      const ups = list ? Promise.all(list.map(f => uploadPhoto(supabase, f, 1400).catch(() => ''))) : null;
       const result = await autoParse(supabase, url.trim(), images);
-      setDrafts(result.map(toDraft)); setActive(0);
+      const caps = ups ? (await ups).filter(Boolean) : [];
+      setDrafts(result.map(x => ({ ...toDraft(x), ...(caps.length ? { photos: caps } : {}) }))); setActive(0);
       toast(result.length > 1 ? `메뉴 ${result.length}개를 불러왔어요` : '레시피를 불러왔어요');
     } catch (e) { setErr(e.message); }
     setBusy(false);
   };
 
-  const pickPhoto = async file => {
+  const pickPhotos = async files => {
     setPhotoBusy(true);
-    try { set('photo', await uploadPhoto(supabase, file)); } catch (e) { toast(e.message); }
+    try {
+      const urls = await Promise.all([...files].slice(0, 10).map(f => uploadPhoto(supabase, f, 1400)));
+      set('photos', [...d.photos, ...urls].slice(0, 10));
+    } catch (e) { toast(e.message); }
     setPhotoBusy(false);
   };
   const grabPhoto = async () => {
     setPhotoBusy(true);
     const p = await fetchPhoto(supabase, url.trim());
-    if (p) set('photo', p); else toast('이 링크에서는 사진을 찾지 못했어요. 직접 올려 주세요.');
+    if (p) set('photos', [p, ...d.photos]); else toast('이 링크에서는 사진을 찾지 못했어요. 직접 올려 주세요.');
     setPhotoBusy(false);
   };
 
@@ -174,18 +181,25 @@ export default function RecipeForm({ recipe, initial, onClose, onSaved }) {
         )}
 
         <div className={card}>
-          <div className="flex items-center gap-3 mb-3 pb-3 border-b border-line">
-            <Thumb dish={d} size={64} rounded="rounded-xl" photo />
-            <div className="flex-1 min-w-0">
-              <span className="block text-[12px] text-muted">메뉴 사진</span>
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                <button type="button" onClick={() => photoRef.current?.click()} disabled={photoBusy} className="h-7 px-3 rounded-full border border-line text-[12px] text-ink disabled:opacity-40">{d.photo ? '사진 바꾸기' : '사진 올리기'}</button>
-                {!d.photo && /^https?:\/\//.test(url.trim()) && <button type="button" onClick={grabPhoto} disabled={photoBusy} className="h-7 px-3 rounded-full border border-[#C9D6C4] text-[12px] text-sage disabled:opacity-40">링크에서 가져오기</button>}
-                {d.photo && <button type="button" onClick={() => set('photo', '')} className="h-7 px-2 text-[12px] text-faintink">지우기</button>}
-                {photoBusy && <Spinner size={14} />}
-              </div>
+          <div className="mb-3 pb-3 border-b border-line">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[12px] text-muted">사진 · 캡처 <span className="text-faintink">{d.photos.length ? `${d.photos.length}장 · 첫 장이 대표` : '상세 화면에 전부 보여요'}</span></span>
+              {photoBusy && <Spinner size={14} />}
             </div>
-            <input ref={photoRef} type="file" accept="image/*" hidden onChange={e => { const f = e.target.files?.[0]; if (f) pickPhoto(f); e.target.value = ''; }} />
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+              {d.photos.map((p, i) => (
+                <div key={p + i} className="relative shrink-0">
+                  <img src={p} alt="" className="h-16 w-16 rounded-xl object-cover border border-line bg-[#EEF0EB]" />
+                  <button type="button" aria-label={`${i + 1}번째 사진 빼기`} onClick={() => set('photos', d.photos.filter((_, j) => j !== i))}
+                    className="absolute -top-1 -right-1 h-5 w-5 grid place-items-center rounded-full bg-ink/70 text-white"><Icon d={I.x} size={10} /></button>
+                  {i > 0 && <button type="button" onClick={() => set('photos', [p, ...d.photos.filter((_, j) => j !== i)])} className="absolute bottom-0.5 left-0.5 right-0.5 h-4 rounded-md bg-white/85 text-[10px] text-ink">대표로</button>}
+                </div>
+              ))}
+              <button type="button" onClick={() => photoRef.current?.click()} disabled={photoBusy} aria-label="사진 추가"
+                className="shrink-0 h-16 w-16 rounded-xl border border-dashed border-[#C9D1C6] grid place-items-center text-sage disabled:opacity-40"><Icon d={I.plus} size={18} /></button>
+              {!d.photos.length && /^https?:\/\//.test(url.trim()) && <button type="button" onClick={grabPhoto} disabled={photoBusy} className="shrink-0 self-center h-7 px-3 rounded-full border border-[#C9D6C4] text-[12px] text-sage disabled:opacity-40">링크에서 가져오기</button>}
+            </div>
+            <input ref={photoRef} type="file" accept="image/*" multiple hidden onChange={e => { const f = e.target.files; if (f && f.length) pickPhotos(f); e.target.value = ''; }} />
           </div>
           <label className={label} htmlFor="r-title">레시피명</label>
           <input id="r-title" value={d.title} maxLength={60} onChange={e => set('title', e.target.value)} placeholder="예: 인생 무뼈닭발" className={box + ' h-10'} />
