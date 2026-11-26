@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTable, editorsOf } from '../hooks/useTable.jsx';
 import { ByLine, cls, focus, Icon, I, IconButton, Pill, useToast } from '../components/ui.jsx';
 import AddSheet from '../components/AddSheet.jsx';
-import Thumb from '../components/Thumb.jsx';
+import Thumb, { EventThumb } from '../components/Thumb.jsx';
 import WishSheet, { useWishBuckets, findRecipeFor } from '../components/WishSheet.jsx';
 import { WEEKDAYS, SHOP_COLOR } from '../lib/constants.js';
 import { addDays, fromKey, labelDate, longDate, shortDate, startOfWeek, toKey, todayKey } from '../lib/utils.js';
@@ -257,7 +257,7 @@ function DayPanel({ date, onAdd }) {
             const { recipe, dish } = e.recipe_id ? t.findDish(e.recipe_id, e.dish_id) : {};
             return (
               <li key={e.id} className="flex items-center gap-3 px-2 py-2.5 border-b border-line last:border-0">
-                {dish ? <Thumb dish={dish} size={46} /> : <span className="w-1 self-stretch rounded-full shrink-0" style={{ background: c.fg, opacity: .35 }} />}
+                {dish ? <Thumb dish={dish} size={46} /> : <EventThumb cat={c} title={e.title} size={46} />}
                 <button type="button" disabled={!recipe} onClick={() => recipe && nav(`recipes/${recipe.id}?d=${encodeURIComponent(dish.id)}`)}
                   className={`flex-1 min-w-0 text-left rounded-lg ${recipe ? 'cursor-pointer' : 'cursor-default'} ${focus}`}>
                   <p className="text-[15px] text-ink font-medium leading-snug">{e.title}{recipe && <Icon d={I.right} size={14} className="inline ml-0.5 text-faintink" />}</p>

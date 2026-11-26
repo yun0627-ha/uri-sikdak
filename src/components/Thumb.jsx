@@ -13,6 +13,28 @@ const G = {
   dessert: { bg: '#D9908A', d: <><path d="M12 20c-3.3 0-5.5-2.2-5.5-5.2 0-3 2.4-4.6 3.4-7.8 1.6 1.2 2 3 1.9 4.2 1-.8 1.6-2 1.6-3.2 2.4 1.8 4.1 4.2 4.1 6.8 0 3-2.2 5.2-5.5 5.2z" /></> },
 };
 
+// 레시피 없이 직접 적은 일정 (장보기 · 약속 등): 카테고리 이름과 제목으로 아이콘 고르기
+const E = [
+  [/장보기|장 보기|마트|시장|쇼핑|코스트코/, '#7FA3B5', <><path d="M3.5 5h2.2l2 9.5h9.8l1.9-7H7" /><circle cx="9.5" cy="18.5" r="1.3" /><circle cx="16" cy="18.5" r="1.3" /></>],
+  [/생일|케이크|기념일|파티/, '#D9908A', <><path d="M5 12h14v7H5z" /><path d="M5 15.5c1.2 1 2.3 1 3.5 0s2.3-1 3.5 0 2.3 1 3.5 0 2.3-1 3.5 0" /><path d="M12 12V9M12 6.8c-.8-.8 0-1.6 0-2.3" /></>],
+  [/여행|캠핑|휴가/, '#86AE93', <><rect x="4.5" y="8" width="15" height="11" rx="2" /><path d="M9 8V6a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M9 11.5v4M15 11.5v4" /></>],
+  [/배달|치킨|피자|포장/, '#D9A35E', <><path d="M4 9h16l-1.5 10h-13z" /><path d="M8 9a4 4 0 0 1 8 0" /></>],
+  [/외식|약속|모임|만남|회식|손님/, '#A98DB5', <><path d="M8 4v6a2 2 0 0 1-4 0V4M6 10v10" /><path d="M17 20V4c-2 1-3 3.5-3 6.5V13h3" /></>],
+];
+const MEAL_ICON = ['#97B594', <><path d="M4 12h16a8 7 0 0 1-16 0z" /><path d="M9 5l2.5 5M15 5l-2.5 5" /></>];
+const ETC_ICON = ['#8C9AA6', <><rect x="4" y="5.5" width="16" height="14" rx="2.5" /><path d="M4 10h16M8.5 3.5v3.5M15.5 3.5v3.5" /></>];
+export function EventThumb({ cat, title = '', size = 44, rounded = 'rounded-[10px]', className = '' }) {
+  const text = `${cat?.label || ''} ${title}`;
+  const hit = E.find(([re]) => re.test(text));
+  const [bg, d] = hit ? [hit[1], hit[2]] : cat?.grp === 'meal' ? MEAL_ICON : ETC_ICON;
+  const s = Math.round(size * 0.5);
+  return (
+    <span className={`shrink-0 grid place-items-center ${rounded} ${className}`} style={{ width: size, height: size, background: bg }} aria-hidden="true">
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{d}</svg>
+    </span>
+  );
+}
+
 // 목록·달력용 작은 그림. photo 를 켜거나, 설정에서 '사진으로 보기'를 켜면 메뉴 사진
 export default function Thumb({ dish, size = 44, className = '', rounded = 'rounded-[10px]', photo = false }) {
   // size 0 + photo: 레시피 상세 화면의 큰 사진 (여러 장이면 넘겨 보기)
