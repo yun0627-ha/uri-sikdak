@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth.jsx';
 import { Avatar, CardHead, cls, focus, Icon, I, Modal, TagInput, Toggle, useToast } from '../components/ui.jsx';
 import CategoryModal from '../components/CategoryModal.jsx';
 import { SHOP_COLOR, TINTS } from '../lib/constants.js';
+import { setPhotoPref, usePhotoPref } from '../lib/photoPref.js';
 
 const Row = ({ title, sub, children }) => (
   <div className="flex items-center justify-between gap-4 px-4 py-3.5 border-b border-line last:border-0">
@@ -26,6 +27,7 @@ export default function Settings() {
   const toast = useToast();
   const nav = useNavigate();
   const s = t.settings;
+  const photoPref = usePhotoPref();
   const [cats, setCats] = useState(false);
   const [qr, setQr] = useState(null); // invite | view
   const [name, setName] = useState(t.table.name);
@@ -89,6 +91,7 @@ export default function Settings() {
         <Row title="처음 열 때 보기"><Seg value={s.defaultView} options={[['2w', '2주'], ['month', '한 달']]} onChange={v => t.updateSettings({ defaultView: v })} disabled={!t.canWrite} /></Row>
         <Row title="한 주의 시작"><Seg value={s.weekStart} options={[[0, '일요일'], [1, '월요일']]} onChange={v => t.updateSettings({ weekStart: v })} disabled={!t.canWrite} /></Row>
         <Row title="끼니 · 일정 카테고리" sub={`${t.categories.length}개 · 이름, 색, 순서 바꾸기`}><button type="button" onClick={() => setCats(true)} className={cls.ghost + ' h-9'}>편집</button></Row>
+        <Row title="메뉴를 사진으로 보기" sub="목록·달력에서 아이콘 대신 사진 (내 폰에서만)"><Toggle on={photoPref} onChange={setPhotoPref} label="메뉴를 사진으로 보기" /></Row>
         <Row title="달력에 장볼 재료 표시" sub="날짜 칸에 '장볼 N'을 함께 보여줘요"><Toggle on={!!s.showShopOnCalendar} onChange={v => t.updateSettings({ showShopOnCalendar: v })} label="달력에 장볼 재료 표시" disabled={!t.canWrite} /></Row>
         <div className="px-4 py-3.5">
           <p className="text-[15px] text-ink">기본 양념</p>
