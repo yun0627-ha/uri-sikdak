@@ -3,7 +3,8 @@ import { useTable, useEditingPresence, editorsOf } from '../hooks/useTable.jsx';
 import { cls, EditingBanner, Icon, I, IconButton, Modal, Spinner, Stepper, TagInput, focus, useToast } from './ui.jsx';
 import { RECIPE_TYPES, rtype } from '../lib/constants.js';
 import { clone, detectSource, emptyDish, sleep } from '../lib/utils.js';
-import { buildPrompt, parsePasted } from '../lib/ai.js';
+import { autoParse, buildPrompt, parsePasted, shrinkImage } from '../lib/ai.js';
+import { supabase } from '../lib/supabase.js';
 
 function DishForm({ dish, onChange }) {
   const set = (k, v) => onChange({ ...dish, [k]: v });
@@ -85,15 +86,15 @@ export default function RecipeForm({ recipe, onClose, onSaved }) {
   const [dishes, setDishes] = useState(() => recipe ? clone(recipe.dishes) : [emptyDish()]);
   const [active, setActive] = useState(0);
   const [answer, setAnswer] = useState('');
-  const [showSrc, setShowSrc] = useState(!editing);
-  const [phase, setPhase] = useState('idle'); // idle | filling | error | done
+  const [showSrc, setShowSrc] = useState(false);
+  const [phase, setPhase] = useState('idle'); // idle | loading | filling | error | done
   const [msg, setMsg] = useState('');
   const [copied, setCopied] = useState(false);
   const [manualPrompt, setManualPrompt] = useState('');
   const [saving, setSaving] = useState(false);
   const alive = useRef(true);
   useEffect(() => () => { alive.current = false; }, []);
-  const busy = phase === 'filling';
+  const busy = phase === 'filling' || phase === 'loading';
   const setDish = (i, d) => setDishes(ds => ds.map((x, j) => j === i ? d : x));
 
   const fill = async src => {
@@ -115,6 +116,25 @@ export default function RecipeForm({ recipe, onClose, onSaved }) {
     const p = buildPrompt(url.trim());
     try { await navigator.clipboard.writeText(p); setCopied(true); setManualPrompt(''); toast('정리 요청문을 복사했어요. Claude에 붙여 넣으세요.'); }
     catch (e) { setManualPrompt(p); }
+  };
+  // 링크만으로 자동 정리
+  const fileRef = useRef(null);
+  const autoFill = async files => {
+    const u = url.trim();
+    if (!files && !/^https?:\/\//.test(u)) { setPhase('error'); setMsg('https:// 로 시작하는 링크를 넣어 주세요.'); return; }
+    setPhase('loading'); setMsg('');
+    let result;
+    try {
+      const images = files ? await Promise.all([...files].slice(0, 4).map(f => shrinkImage(f))) : null;
+      result = await autoParse(supabase, u, images);
+    }
+    catch (e) { if (alive.current) { setPhase('error'); setMsg(e.message); } return; }
+    if (!alive.current) return;
+    setPhase('filling');
+    if (await fill(result)) {
+      setPhase('done');
+      setMsg(result.length > 1 ? `메뉴 ${result.length}개를 불러왔어요. 탭을 눌러 확인하고 저장하세요.` : '불러왔어요. 확인하고 저장하세요.');
+    }
   };
   const applyAnswer = async () => {
     let result;
@@ -171,9 +191,16 @@ export default function RecipeForm({ recipe, onClose, onSaved }) {
       {formEditors.length > 0 && <div className="mb-3"><EditingBanner people={formEditors} what="이 레시피를 함께 열어 두었어요" /></div>}
       <div className="rounded-2xl border border-line bg-canvas/60 p-3.5">
         <label className={cls.label} htmlFor="src-url">레시피 링크 <span className="font-normal text-faintink">(원문 바로가기로 저장돼요)</span></label>
-        <input id="src-url" value={url} onChange={e => setUrl(e.target.value)} className={cls.input + ' rounded-full'} placeholder="유튜브, 블로그, 인스타그램 링크" inputMode="url" />
-        {editing && !showSrc ? (
-          <button type="button" onClick={() => setShowSrc(true)} className="mt-2 text-[13px] text-sage h-7">Claude로 다시 정리하기</button>
+        <div className="flex gap-2">
+          <input id="src-url" value={url} onChange={e => { setUrl(e.target.value); if (phase === 'error') setPhase('idle'); }} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); autoFill(); } }}
+            className={cls.input + ' rounded-full'} placeholder="유튜브, 블로그, 인스타 링크 붙여넣기" inputMode="url" />
+          <button type="button" onClick={() => autoFill()} disabled={busy || !url.trim()} className={cls.primary + ' shrink-0'}>{phase === 'loading' ? <Spinner /> : <Icon d={I.spark} size={15} />}불러오기</button>
+        </div>
+        <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={e => { const f = e.target.files; if (f && f.length) autoFill(f); e.target.value = ''; }} />
+        <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} className={cls.ghost + ' mt-2 h-9 text-[13px]'}><Icon d={I.download} size={14} />캡처로 불러오기 <span className="text-faintink">(최대 4장)</span></button>
+        {phase === 'loading' && <p className="mt-2 flex items-center gap-2 text-[13px] text-sage"><Spinner size={14} />AI가 레시피를 정리하는 중이에요… (영상은 30초쯤 걸려요)</p>}
+        {!showSrc ? (
+          <button type="button" onClick={() => setShowSrc(true)} className="mt-2 text-[12px] text-muted underline underline-offset-2 h-7">그래도 안 되면? Claude 채팅으로 직접 정리하기</button>
         ) : (
           <div className="mt-4">
             <p className="flex items-center gap-1.5 text-[14px] font-semibold text-ink"><Icon d={I.spark} size={15} className="text-sage" />Claude로 정리하기 <span className="text-[13px] font-normal text-muted">추가 비용 없음</span></p>
