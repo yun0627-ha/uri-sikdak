@@ -175,7 +175,7 @@ export default function RecipeForm({ recipe, initial, onClose, onSaved }) {
 
         <div className={card}>
           <div className="flex items-center gap-3 mb-3 pb-3 border-b border-line">
-            <Thumb dish={d} size={64} rounded="rounded-xl" />
+            <Thumb dish={d} size={64} rounded="rounded-xl" photo />
             <div className="flex-1 min-w-0">
               <span className="block text-[12px] text-muted">메뉴 사진</span>
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
