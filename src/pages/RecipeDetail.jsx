@@ -6,6 +6,7 @@ import { Avatar, ByLine, Check, cls, EditingBanner, Empty, focus, HeartButton, I
 import RecipeForm from '../components/RecipeForm.jsx';
 import CookingMode from '../components/CookingMode.jsx';
 import AddSheet from '../components/AddSheet.jsx';
+import Thumb from '../components/Thumb.jsx';
 import { STAR, rtype } from '../lib/constants.js';
 import { detectSource, dishToShopping, fmtAmount, hostOf, isHttps, norm, scaleAmount, todayKey } from '../lib/utils.js';
 import { avgStars, reviewsFor } from '../lib/reviews.js';
@@ -91,6 +92,7 @@ export default function RecipeDetail() {
         </div>
       )}
 
+      {dish.photo && <Thumb dish={dish} photo size={0} rounded="rounded-[24px]" className="w-full aspect-[4/3] mb-3 border border-line" />}
       <article className="rounded-[28px] border border-line bg-white px-5 sm:px-8 pt-6 pb-8">
         <div className="flex items-start justify-between gap-3">
           <TypePill type={dish.type} className="px-3 py-1" />
