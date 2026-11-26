@@ -17,10 +17,7 @@ export default function Recipes() {
   const [q, setQ] = useState('');
   const [type, setType] = useState('all');
   const [form, setForm] = useState(false);
-  // 보기 방식: 목록 / 사진 (기기에 기억)
-  const [look, setLookRaw] = useState(() => { try { return localStorage.getItem('recipe-look') || 'photo'; } catch (e) { return 'photo'; } });
-  const setLook = v => { setLookRaw(v); try { localStorage.setItem('recipe-look', v); } catch (e) { /* 무시 */ } };
-  // 예전에 저장한 레시피는 링크에서 대표 사진을 조금씩 채워요 (한 번만 시도)
+  // 예전에 저장한 레시피는 링크에서 대표 사진을 조금씩 채워요 (상세 화면용, 한 번만 시도)
   const tried = useRef(new Set());
   useEffect(() => {
     if (!t.canWrite) return;
@@ -57,15 +54,7 @@ export default function Recipes() {
               className={`h-9 px-4 rounded-full text-[14px] font-medium ${mode === v ? 'bg-sage text-white' : 'text-muted hover:text-ink'}`}>{l}</button>
           ))}
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="inline-flex rounded-full border border-line bg-white p-0.5" role="tablist" aria-label="보기 방식">
-            {[['list', 'M8 6h13|M8 12h13|M8 18h13|M3.5 6h.01|M3.5 12h.01|M3.5 18h.01', '목록'], ['photo', 'M4 4h7v7H4z|M13 4h7v7h-7z|M4 13h7v7H4z|M13 13h7v7h-7z', '사진']].map(([v, d, l]) => (
-              <button key={v} type="button" role="tab" aria-selected={look === v} aria-label={`${l}으로 보기`} onClick={() => setLook(v)}
-                className={`h-8 w-9 grid place-items-center rounded-full ${look === v ? 'bg-sage-soft text-sage-dark' : 'text-faintink'}`}><Icon d={d} size={16} /></button>
-            ))}
-          </div>
-          {t.canWrite && <button type="button" onClick={() => setForm(true)} className={cls.primary}><Icon d={I.plus} size={16} />새 레시피</button>}
-        </div>
+        {t.canWrite && <button type="button" onClick={() => setForm(true)} className={cls.primary}><Icon d={I.plus} size={16} />새 레시피</button>}
       </div>
 
       {mode === 'fridge' ? (
@@ -105,28 +94,6 @@ export default function Recipes() {
         </Empty>
       )}
 
-      {look === 'photo' && mode !== 'fridge' ? (
-        <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-2.5 gap-y-3.5">
-          {rows.map(({ r, d }) => {
-            const a = avgStars(t.reviews, r.id, d.id);
-            return (
-              <li key={`${r.id}|${d.id}`}>
-                <div role="button" tabIndex={0} onClick={() => open(r, d)} onKeyDown={e => { if (e.key === 'Enter') open(r, d); }} className={`cursor-pointer rounded-2xl ${focus}`}>
-                  <div className="relative">
-                    <Thumb dish={d} size={0} rounded="rounded-2xl" className="w-full aspect-square" />
-                    <HeartButton on={t.isFav(r.id, d.id)} onClick={() => t.toggleFav(r.id, d.id)} size={16} className="!absolute top-1 right-1 !h-8 !w-8 bg-white/80 backdrop-blur" />
-                  </div>
-                  <p className="mt-1.5 px-0.5 text-[14px] font-semibold text-ink leading-snug truncate">{d.title}</p>
-                  <p className="px-0.5 flex items-center gap-1.5 text-[12px] text-muted">
-                    <span className="truncate">{rtype(d.type).label}</span>
-                    {a > 0 && <span className="shrink-0 font-semibold text-[#9A7428]">★ {a.toFixed(1)}</span>}
-                  </p>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
       <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
         {rows.map(({ r, d, i, hits, m }) => {
           const a = avgStars(t.reviews, r.id, d.id);
@@ -168,7 +135,6 @@ export default function Recipes() {
           );
         })}
       </ul>
-      )}
       {form && <RecipeForm onClose={() => setForm(false)} onSaved={(rid, did) => { setForm(false); nav(`${rid}?d=${encodeURIComponent(did)}`); }} />}
     </div>
   );
