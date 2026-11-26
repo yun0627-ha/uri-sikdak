@@ -13,7 +13,6 @@ import { addDays, toKey, makeIsBasic, norm, parseAmount, fmtAmount, startOfWeek 
 const TableCtx = createContext(null);
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
 const byId = (a, b) => a.id === b.id;
-const reviewKey = (a, b) => a.recipe_id === b.recipe_id && a.dish_id === b.dish_id && a.user_id === b.user_id;
 const sortRecipes = list => [...list].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
 
 export function TableProvider({ tableId, children }) {
@@ -84,7 +83,7 @@ export function TableProvider({ tableId, children }) {
     watch('recipes', setRecipes, byId, sortRecipes);
     watch('shopping_items', setShopping, byId);
     watch('categories', setCategories, byId, list => [...list].sort((a, b) => a.position - b.position));
-    watch('reviews', setReviews, reviewKey);
+    watch('reviews', setReviews, byId);
     watch('day_notes', setNotes, byId);
     watch('wishes', setWishes, byId);
     ch.on('postgres_changes', { event: '*', schema: 'public', table: 'table_members', filter }, () => loadMembers());
@@ -228,16 +227,25 @@ export function TableProvider({ tableId, children }) {
   };
 
   // ---- 별점 · 즐겨찾기 (사람마다) ----
-  const setReview = async (recipeId, dishId, review) => {
-    const key = { recipe_id: recipeId, dish_id: dishId, user_id: user.id };
-    if (!review) {
-      setReviews(l => l.filter(x => !reviewKey(x, key)));
-      await run(supabase.from('reviews').delete().match(key)).catch(() => {});
-      return;
-    }
-    const row = { ...key, table_id: tableId, stars: review.stars, text: review.text || '', updated_at: new Date().toISOString() };
-    setReviews(l => [...l.filter(x => !reviewKey(x, key)), row]);
-    await run(supabase.from('reviews').upsert(row)).catch(() => {});
+  // 한줄평: 한 사람이 여러 개 남길 수 있어요
+  const addReview = async (recipeId, dishId, { stars, text }) => {
+    const now = new Date().toISOString();
+    const row = { id: newId(), table_id: tableId, recipe_id: recipeId, dish_id: dishId, user_id: user.id, stars, text: (text || '').slice(0, 80), created_at: now, updated_at: now };
+    setReviews(l => [...l, row]);
+    await run(supabase.from('reviews').insert(row)).catch(() => {});
+  };
+  const updateReview = async (r, { stars, text }) => {
+    const patch = { stars, text: (text || '').slice(0, 80), updated_at: new Date().toISOString() };
+    setReviews(l => l.map(x => x.id === r.id ? { ...x, ...patch } : x));
+    await run(supabase.from('reviews').update(patch).eq('id', r.id)).catch(() => {});
+  };
+  const deleteReview = async r => {
+    setReviews(l => l.filter(x => x.id !== r.id));
+    await run(supabase.from('reviews').delete().eq('id', r.id)).catch(() => {});
+  };
+  const restoreReview = async r => {
+    setReviews(l => [...l.filter(x => x.id !== r.id), r]);
+    await run(supabase.from('reviews').upsert(r)).catch(() => {});
   };
   const isFav = (recipeId, dishId) => favorites.some(f => f.recipe_id === recipeId && f.dish_id === dishId);
   const toggleFav = async (recipeId, dishId) => {
@@ -354,7 +362,7 @@ export function TableProvider({ tableId, children }) {
     addEvent, deleteEvent, restoreEvent, reorderEvents, evCmp, addRecipes, updateRecipe, deleteRecipe, splitRecipe,
     addShopping, toggleShopping, deleteShopping, restoreShopping, clearChecked,
     addNote, deleteNote, toggleNoteLike, addWish, updateWish, toggleWishVote, deleteWish,
-    setReview, isFav, toggleFav, addCategory, updateCategory, deleteCategory, moveCategory,
+    addReview, updateReview, deleteReview, restoreReview, isFav, toggleFav, addCategory, updateCategory, deleteCategory, moveCategory,
     updateTable, updateSettings, rotateCode, setMemberRole, removeMember, deleteTable,
   };
   return <TableCtx.Provider value={value}>{children}</TableCtx.Provider>;
