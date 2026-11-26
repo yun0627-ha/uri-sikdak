@@ -4,6 +4,7 @@ import { useAuth } from './useAuth.jsx';
 import { useToast } from '../components/ui.jsx';
 import { DEFAULT_SETTINGS } from '../lib/constants.js';
 import { addDays, toKey, makeIsBasic, norm, parseAmount, fmtAmount, startOfWeek } from '../lib/utils.js';
+import { guessExpires, guessFood, mergeAmount } from '../lib/food.js';
 
 /*
   한 식탁의 모든 데이터를 불러오고, Supabase Realtime 으로 가족의 변경을 바로 반영해요.
@@ -25,6 +26,7 @@ export function TableProvider({ tableId, children }) {
   const [recipes, setRecipes] = useState([]);
   const [events, setEvents] = useState([]);
   const [shopping, setShopping] = useState([]);
+  const [fridge, setFridge] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [notes, setNotes] = useState([]);
@@ -39,7 +41,7 @@ export function TableProvider({ tableId, children }) {
 
   const load = useCallback(async () => {
     const since = toKey(addDays(new Date(), -400));
-    const [t, c, r, e, s, rv, f, nt, w] = await Promise.all([
+    const [t, c, r, e, s, rv, f, nt, w, fr] = await Promise.all([
       supabase.from('tables').select('*').eq('id', tableId).maybeSingle(),
       supabase.from('categories').select('*').eq('table_id', tableId).order('position'),
       supabase.from('recipes').select('*').eq('table_id', tableId).order('created_at', { ascending: false }),
@@ -49,12 +51,13 @@ export function TableProvider({ tableId, children }) {
       supabase.from('favorites').select('*').eq('table_id', tableId).eq('user_id', user.id),
       supabase.from('day_notes').select('*').eq('table_id', tableId).gte('date', since).order('created_at'),
       supabase.from('wishes').select('*').eq('table_id', tableId).order('created_at'),
+      supabase.from('fridge_items').select('*').eq('table_id', tableId).order('created_at'),
     ]);
     if (t.error) { setStatus('error'); return; }
     if (!t.data) { setStatus('notfound'); return; }
     setTable(t.data); setCategories(c.data || []); setRecipes(r.data || []); setEvents(e.data || []);
     setShopping(s.data || []); setReviews(rv.data || []); setFavorites(f.data || []);
-    setNotes(nt.data || []); setWishes(w.data || []);
+    setNotes(nt.data || []); setWishes(w.data || []); setFridge(fr.data || []);
     await loadMembers();
     setStatus('ready');
   }, [tableId, user.id, loadMembers]);
@@ -86,6 +89,7 @@ export function TableProvider({ tableId, children }) {
     watch('reviews', setReviews, byId);
     watch('day_notes', setNotes, byId);
     watch('wishes', setWishes, byId);
+    watch('fridge_items', setFridge, byId);
     ch.on('postgres_changes', { event: '*', schema: 'public', table: 'table_members', filter }, () => loadMembers());
     ch.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tables', filter: `id=eq.${tableId}` }, p => setTable(p.new));
     ch.on('presence', { event: 'sync' }, () => {
@@ -226,6 +230,49 @@ export function TableProvider({ tableId, children }) {
     if (ids.length) await run(supabase.from('shopping_items').delete().in('id', ids)).catch(() => {});
   };
 
+  // 장바구니에서 산 걸 체크하면 냉장고로 (같은 재료가 있으면 양을 합쳐요). 되돌리기 함수를 돌려줘요
+  const buyShopping = async item => {
+    if (!guard()) return null;
+    const amt = [item.amount, item.unit].filter(Boolean).join('');
+    setShopping(l => l.map(i => i.id === item.id ? { ...i, checked: true } : i));
+    await run(supabase.from('shopping_items').update({ checked: true }).eq('id', item.id)).catch(() => {});
+    const uncheck = async () => {
+      setShopping(l => l.map(i => i.id === item.id ? { ...i, checked: false } : i));
+      await run(supabase.from('shopping_items').update({ checked: false }).eq('id', item.id)).catch(() => {});
+    };
+    const ex = fridge.find(f => norm(f.name) === norm(item.name));
+    if (ex) {
+      await updateFridge(ex, { amount: mergeAmount(ex.amount, amt) });
+      return async () => { await uncheck(); await updateFridge(ex, { amount: ex.amount }); };
+    }
+    const place = guessFood(item.name).place;
+    const [row] = await addFridge([{ name: item.name, amount: amt, place, expires: guessExpires(item.name, place) }]);
+    return async () => { await uncheck(); if (row) await deleteFridge(row); };
+  };
+
+  // ---- 냉장고 ----
+  const addFridge = async items => {
+    if (!guard()) return [];
+    const rows = items.map(it => ({ id: newId(), table_id: tableId, name: it.name.trim().slice(0, 40), amount: (it.amount || '').slice(0, 30), place: it.place || 'fridge', expires: it.expires || null, created_by: user.id, created_at: new Date().toISOString() }));
+    setFridge(l => [...l, ...rows]);
+    await run(supabase.from('fridge_items').insert(rows)).catch(() => {});
+    return rows;
+  };
+  const updateFridge = async (f, patch) => {
+    if (!guard()) return;
+    setFridge(l => l.map(x => x.id === f.id ? { ...x, ...patch } : x));
+    await run(supabase.from('fridge_items').update(patch).eq('id', f.id)).catch(() => {});
+  };
+  const deleteFridge = async f => {
+    if (!guard()) return;
+    setFridge(l => l.filter(x => x.id !== f.id));
+    await run(supabase.from('fridge_items').delete().eq('id', f.id)).catch(() => {});
+  };
+  const restoreFridge = async f => {
+    setFridge(l => [...l.filter(x => x.id !== f.id), f]);
+    await run(supabase.from('fridge_items').upsert(f)).catch(() => {});
+  };
+
   // ---- 별점 · 즐겨찾기 (사람마다) ----
   // 한줄평: 한 사람이 여러 개 남길 수 있어요
   const addReview = async (recipeId, dishId, { stars, text }) => {
@@ -357,10 +404,11 @@ export function TableProvider({ tableId, children }) {
   };
 
   const value = {
-    status, table, settings, members, categories, recipes, events, shopping, reviews, favorites, notes, wishes,
+    status, table, settings, members, categories, recipes, events, shopping, fridge, reviews, favorites, notes, wishes,
     me: user.id, myRole, canWrite, periodKey, isOwner: myRole === 'owner', others, setEditing, isBasic, getCat, profileOf, findDish, reload: load,
     addEvent, deleteEvent, restoreEvent, reorderEvents, evCmp, addRecipes, updateRecipe, deleteRecipe, splitRecipe,
-    addShopping, toggleShopping, deleteShopping, restoreShopping, clearChecked,
+    addShopping, toggleShopping, deleteShopping, restoreShopping, clearChecked, buyShopping,
+    addFridge, updateFridge, deleteFridge, restoreFridge,
     addNote, deleteNote, toggleNoteLike, addWish, updateWish, toggleWishVote, deleteWish,
     addReview, updateReview, deleteReview, restoreReview, isFav, toggleFav, addCategory, updateCategory, deleteCategory, moveCategory,
     updateTable, updateSettings, rotateCode, setMemberRole, removeMember, deleteTable,
