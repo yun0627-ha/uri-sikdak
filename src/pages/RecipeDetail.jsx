@@ -253,15 +253,23 @@ function ReviewSection({ recipe, dish }) {
   const toast = useToast();
   const list = reviewsFor(t.reviews, recipe.id, dish.id).sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)));
   const mine = list.find(r => r.user_id === t.me);
-  const [stars, setStars] = useState(mine?.stars || 0);
-  const [text, setText] = useState(mine?.text || '');
-  useEffect(() => { setStars(mine?.stars || 0); setText(mine?.text || ''); }, [dish.id, mine?.updated_at]);
+  const [editing, setEditing] = useState(false);
+  const [stars, setStars] = useState(0);
+  const [text, setText] = useState('');
+  useEffect(() => { setEditing(false); }, [dish.id]);
+  const showForm = !mine || editing;
+  useEffect(() => { if (showForm) { setStars(mine?.stars || 0); setText(mine?.text || ''); } }, [showForm, mine?.updated_at]);
   const avg = avgStars(t.reviews, recipe.id, dish.id);
-  const changed = stars !== (mine?.stars || 0) || text.trim() !== (mine?.text || '');
   const save = async () => {
-    if (!stars || !changed) return;
+    if (!stars) return;
     await t.setReview(recipe.id, dish.id, { stars, text: text.trim().slice(0, 80) });
     toast(mine ? '한줄평을 고쳤어요' : '한줄평을 남겼어요');
+    setEditing(false);
+  };
+  const remove = r => {
+    t.setReview(recipe.id, dish.id, null);
+    setEditing(false);
+    toast('내 평가를 지웠어요', { label: '되돌리기', fn: () => t.setReview(recipe.id, dish.id, { stars: r.stars, text: r.text }) });
   };
   return (
     <>
@@ -269,33 +277,46 @@ function ReviewSection({ recipe, dish }) {
       <div className="rounded-2xl border border-line">
         {list.map(r => {
           const p = t.profileOf(r.user_id) || { nickname: '?', tint: '#EFEFEF' };
+          const me = r.user_id === t.me;
+          if (me && editing) return null;
           return (
-            <div key={r.user_id} className="flex gap-2 px-3 py-2 border-b border-line">
+            <div key={r.user_id} className="flex gap-2 px-3 py-2 border-b border-line last:border-0">
               <Avatar p={p} size={22} />
               <div className="flex-1 min-w-0">
-                <p className="flex items-center gap-1.5 text-[12px]"><span className="text-ink font-semibold">{p.nickname}</span><MiniStars n={r.stars} />{r.updated_at && <span className="ml-auto text-[11px] text-faintink tabular-nums">{reviewDate(r.updated_at)}</span>}</p>
+                <p className="flex items-center gap-1.5 text-[12px]"><span className="text-ink font-semibold">{p.nickname}{me && <span className="ml-0.5 font-normal text-muted">(나)</span>}</span><MiniStars n={r.stars} /></p>
                 {r.text && <p className="text-[13px] text-ink mt-0.5 leading-snug">{r.text}</p>}
               </div>
+              <span className="shrink-0 flex flex-col items-end gap-0.5 text-[11px] leading-tight text-faintink">
+                {r.updated_at && <span className="tabular-nums">{reviewDate(r.updated_at)}</span>}
+                {me && (
+                  <span className="flex items-center gap-2">
+                    <button type="button" onClick={() => setEditing(true)} className="py-1 hover:text-sage">수정</button>
+                    <button type="button" onClick={() => remove(r)} className="py-1 hover:text-[#9E4742]">지우기</button>
+                  </span>
+                )}
+              </span>
             </div>
           );
         })}
-        <div className="px-3 py-2.5">
-          <div className="flex items-center justify-between">
-            <p className="text-[12px] font-medium text-sage">{profile?.nickname}의 평가</p>
-            <div className="flex items-center" role="radiogroup" aria-label="별점">
-              {[1, 2, 3, 4, 5].map(n => (
-                <button key={n} type="button" role="radio" aria-checked={stars === n} aria-label={`${n}점`} onClick={() => setStars(n === stars ? 0 : n)}
-                  className={`h-8 w-7 grid place-items-center rounded-full active:scale-90 transition-transform ${focus}`}><CuteStar on={n <= stars} size={20} /></button>
-              ))}
+        {showForm && (
+          <div className={`px-3 py-2.5 ${list.length && !(mine && editing && list.length === 1) ? 'border-t border-line' : ''}`}>
+            <div className="flex items-center justify-between">
+              <p className="text-[12px] font-medium text-sage">{editing ? '내 평가 고치기' : `${profile?.nickname || '나'}의 평가`}</p>
+              <div className="flex items-center" role="radiogroup" aria-label="별점">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button key={n} type="button" role="radio" aria-checked={stars === n} aria-label={`${n}점`} onClick={() => setStars(n === stars ? 0 : n)}
+                    className={`h-8 w-7 grid place-items-center rounded-full active:scale-90 transition-transform ${focus}`}><CuteStar on={n <= stars} size={20} /></button>
+                ))}
+              </div>
+            </div>
+            <div className="mt-1.5 flex items-center gap-2 border-b border-[#C9D6C4] focus-within:border-sage">
+              <input value={text} maxLength={80} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') save(); }} enterKeyHint="done" autoComplete="off"
+                placeholder={stars ? '한줄평 (안 써도 돼요)' : '별을 먼저 눌러 주세요'} aria-label="한줄평" className="flex-1 min-w-0 h-9 bg-transparent px-0.5 text-[14px] placeholder:text-faintink focus:outline-none" />
+              {editing && <button type="button" onClick={() => setEditing(false)} className="shrink-0 h-9 px-1 text-[13px] text-muted">취소</button>}
+              <button type="button" disabled={!stars} onClick={save} className="shrink-0 h-9 px-1 text-[13px] font-semibold text-sage disabled:opacity-40">{editing ? '저장' : '남기기'}</button>
             </div>
           </div>
-          <div className="mt-1.5 flex gap-1.5">
-            <input value={text} maxLength={80} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') save(); }}
-              placeholder="한줄평 (예: 또 해줘! 간은 싱겁게)" aria-label="한줄평" className={cls.input + ' rounded-full !h-8 !text-[13px] !px-3'} />
-            <button type="button" disabled={!stars || !changed} onClick={save} className={cls.primary + ' shrink-0 !h-8 !px-3 !text-[12px]'}>{mine ? '수정' : '남기기'}</button>
-          </div>
-          {mine && <button type="button" onClick={() => { t.setReview(recipe.id, dish.id, null); toast('내 평가를 지웠어요'); }} className="mt-1 text-[12px] text-faintink hover:text-[#9E4742] h-6">내 평가 지우기</button>}
-        </div>
+        )}
       </div>
     </>
   );
