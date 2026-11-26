@@ -65,7 +65,7 @@ function TagEdit({ tags, onChange }) {
 }
 
 // 레시피 입력 · 편집 (전체 화면). initial: { url, dishes } — 자동 분석 결과를 받아서 채워 둠
-export default function RecipeForm({ recipe, initial, onClose, onSaved }) {
+export default function RecipeForm({ recipe, initial, onClose, onSaved, onDeleted }) {
   const t = useTable();
   const toast = useToast();
   const editing = !!recipe;
@@ -82,6 +82,7 @@ export default function RecipeForm({ recipe, initial, onClose, onSaved }) {
   const [newLink, setNewLink] = useState('');
   const fileRef = useRef(null), photoRef = useRef(null);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [delArmed, setDelArmed] = useState(false);
   const d = drafts[active] || drafts[0];
   const set = (k, v) => setDrafts(ds => ds.map((x, i) => i === active ? { ...x, [k]: v } : x));
 
@@ -258,6 +259,18 @@ export default function RecipeForm({ recipe, initial, onClose, onSaved }) {
           <button type="button" onClick={() => { setDrafts(ds => [...ds, toDraft(emptyDish())]); setActive(drafts.length); }} className="h-8 px-3 rounded-full border border-dashed border-[#C9D1C6] text-[12px] text-sage">+ 같은 링크에 메뉴 추가</button>
           {drafts.length > 1 && <button type="button" onClick={() => save(true)} disabled={saving} className="h-8 px-3 rounded-full border border-line text-[12px] text-ink">메뉴별로 따로 저장 ({drafts.length}개)</button>}
         </div>
+
+        {editing && (
+          <div className="pt-6 flex justify-center">
+            {delArmed ? (
+              <span className="flex items-center gap-3 text-[12px]">
+                <span className="text-[#9E4742]">정말 지울까요? 달력 일정은 남아요.</span>
+                <button type="button" onClick={() => setDelArmed(false)} className="h-8 px-2 text-muted">취소</button>
+                <button type="button" onClick={async () => { await t.deleteRecipe(recipe.id); toast('레시피를 삭제했어요'); onDeleted?.(); }} className="h-8 px-3 rounded-full bg-[#9E4742] text-white">삭제</button>
+              </span>
+            ) : <button type="button" onClick={() => setDelArmed(true)} className="h-8 px-2 text-[12px] text-faintink underline underline-offset-2 hover:text-[#9E4742]">이 레시피 삭제</button>}
+          </div>
+        )}
       </div>
 
       <div className="fixed inset-x-0 bottom-0 bg-[#FAFAF7]/95 backdrop-blur border-t border-line px-3 py-2.5" style={{ paddingBottom: 'calc(10px + env(safe-area-inset-bottom))' }}>
