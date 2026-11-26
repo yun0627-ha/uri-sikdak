@@ -22,6 +22,9 @@ export default function AddSheet({ date: initDate, initRecipe, onClose }) {
   const [type, setType] = useState('all');
   const [withCart, setWithCart] = useState(false);
   const [title, setTitle] = useState(''), [note, setNote] = useState('');
+  // 검색칸을 누르면 위쪽(제목·끼니·탭)을 접어서, 키보드가 올라와도 메뉴 목록이 보이게
+  const [searchOn, setSearchOn] = useState(false);
+  const closeSearch = () => { setSearchOn(false); document.activeElement?.blur?.(); };
   useEffect(() => { if (!recipeOk) setTab('manual'); }, [recipeOk]);
   useEffect(() => {
     if (catOpen) return undefined;
@@ -57,8 +60,15 @@ export default function AddSheet({ date: initDate, initRecipe, onClose }) {
     <>
       <div className="fixed inset-0 z-40 flex items-end justify-center bg-[#2E352F]/30" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
         <div role="dialog" aria-modal="true" aria-label="메뉴 추가"
-          className="fade-in w-full sm:max-w-[560px] h-[88vh] flex flex-col bg-[#FBFCFA] rounded-t-[32px] border border-line shadow-[0_-20px_60px_-20px_rgba(46,53,47,.35)]">
+          className={`fade-in w-full sm:max-w-[560px] ${searchOn ? 'h-[96%]' : 'h-[88%]'} flex flex-col transition-[height] bg-[#FBFCFA] rounded-t-[32px] border border-line shadow-[0_-20px_60px_-20px_rgba(46,53,47,.35)]`}>
           <div className="pt-3 flex justify-center"><span className="h-1.5 w-12 rounded-full bg-[#D8DDD4]" /></div>
+          {searchOn ? (
+            <div className="px-3 pt-1 pb-2 flex items-center gap-1 border-b border-line">
+              <button type="button" onClick={closeSearch} aria-label="검색 닫기" className={`h-8 w-8 grid place-items-center rounded-full text-muted hover:text-ink ${focus}`}><Icon d={I.left} size={18} /></button>
+              <p className="flex-1 text-[13px] text-muted">{shortDate(date)} <b className="font-semibold" style={{ color: cat.fg }}>{cat.label}</b>에 넣을 메뉴</p>
+              <button type="button" onClick={closeSearch} className="h-8 px-3 rounded-full text-[13px] text-sage">완료</button>
+            </div>
+          ) : (<>
           <div className="px-6 pt-3 text-center">
             <h2 className="text-[20px] font-bold text-ink">어떤 메뉴를 먹을까?</h2>
             <label className="relative mt-1 inline-flex items-center gap-1 text-[14px] text-muted cursor-pointer hover:text-ink">
@@ -89,13 +99,14 @@ export default function AddSheet({ date: initDate, initRecipe, onClose }) {
               );
             })}
           </div>
-          <div className="flex-1 overflow-y-auto px-4 sm:px-5 pt-4 pb-8">
+          </>)}
+          <div className="flex-1 overflow-y-auto px-4 sm:px-5 pt-3 pb-8">
             {tab === 'book' ? (
               <>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-faintink"><Icon d={I.search} size={18} /></span>
-                  <input value={q} onChange={e => setQ(e.target.value)} placeholder="레시피 검색 (요리명 · #태그 · 재료)" aria-label="레시피 검색"
-                    className="w-full h-12 rounded-2xl border border-line bg-white pl-11 pr-4 text-base sm:text-[15px] placeholder:text-faintink focus:outline-none focus:border-sage focus:ring-2 focus:ring-sage/15" />
+                  <input value={q} onChange={e => setQ(e.target.value)} onFocus={() => setSearchOn(true)} enterKeyHint="search" onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} placeholder="레시피 검색 (요리명 · #태그 · 재료)" aria-label="레시피 검색"
+                    className="w-full h-11 rounded-2xl border border-line bg-white pl-11 pr-4 text-base sm:text-[15px] placeholder:text-faintink focus:outline-none focus:border-sage focus:ring-2 focus:ring-sage/15" />
                 </div>
                 <div className="mt-3 flex gap-1.5 overflow-x-auto no-scrollbar">
                   {[{ id: 'all', label: '전체', bg: '#E8EFE6', fg: '#46604A' }, { id: 'fav', label: '♥ 즐겨찾기', bg: '#F7E8E6', fg: '#9E4742' }, ...RECIPE_TYPES].map(x => (
@@ -104,26 +115,26 @@ export default function AddSheet({ date: initDate, initRecipe, onClose }) {
                       style={type === x.id ? { background: x.bg, color: x.fg } : undefined}>{x.label}</button>
                   ))}
                 </div>
-                <label className="mt-3 flex items-center gap-2 text-[13px] text-muted cursor-pointer select-none">
+                {!searchOn && <label className="mt-3 flex items-center gap-2 text-[13px] text-muted cursor-pointer select-none">
                   <input type="checkbox" checked={withCart} onChange={e => setWithCart(e.target.checked)} className="h-4 w-4 accent-[#58765B]" />
                   고른 메뉴의 재료를 장바구니에도 담기 <span className="text-faintink">(기본 양념 제외)</span>
-                </label>
-                <ul className="mt-3 flex flex-col gap-2.5">
+                </label>}
+                <ul className="mt-3 flex flex-col gap-2">
                   {dishes.map(({ r, d }) => {
                     const a = avgStars(t.reviews, r.id, d.id);
                     return (
                       <li key={`${r.id}|${d.id}`}>
                         <button type="button" onClick={() => pick({ r, d })}
-                          className={`w-full text-left flex items-center gap-4 rounded-2xl border border-line bg-white px-5 py-4 hover:border-[#BFCFBA] active:bg-sage-faint transition-colors ${focus}`}>
+                          className={`w-full text-left flex items-center gap-4 rounded-2xl border border-line bg-white px-4 py-3 hover:border-[#BFCFBA] active:bg-sage-faint transition-colors ${focus}`}>
                           <span className="flex-1 min-w-0">
-                            <span className="block text-[16px] text-ink font-medium truncate">{t.isFav(r.id, d.id) && <span className="text-[#C0524C] mr-1">♥</span>}{d.title}</span>
-                            <span className="mt-1.5 flex items-center gap-1.5">
+                            <span className="block text-[15px] text-ink font-medium truncate">{t.isFav(r.id, d.id) && <span className="text-[#C0524C] mr-1">♥</span>}{d.title}</span>
+                            <span className="mt-1 flex items-center gap-1.5">
                               <TypePill type={d.type} className="!text-[13px] !px-2" />
                               {a > 0 && <span className="text-[13px] font-semibold text-[#9A7428]">★ {a.toFixed(1)}</span>}
                               {r.dishes.length > 1 && <span className="text-[13px] text-faintink truncate">{recipeTitle(r)}</span>}
                             </span>
                           </span>
-                          <span className="h-9 w-9 shrink-0 grid place-items-center rounded-full bg-sage-faint text-sage"><Icon d={I.plus} size={17} /></span>
+                          <span className="h-8 w-8 shrink-0 grid place-items-center rounded-full bg-sage-faint text-sage"><Icon d={I.plus} size={16} /></span>
                         </button>
                       </li>
                     );
