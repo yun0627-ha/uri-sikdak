@@ -4,7 +4,14 @@
 
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 /* 휴대폰에서는 전체를 조금 작게 (글씨 · 버튼 · 여백 모두) */
-@media (max-width: 640px) { html { zoom: .86; } }
+/* 글자 크기 설정 (lib/fontSize.js): 화면 전체를 같은 비율로 */
+html.fs-m { zoom: 1.08; }
+html.fs-l { zoom: 1.16; }
+@media (max-width: 640px) {
+  html { zoom: .86; }
+  html.fs-m { zoom: .94; }
+  html.fs-l { zoom: 1.02; }
+}
 html, body { background-color: #F7F8F5; }
 body {
   margin: 0; color: #2E352F; overflow-x: clip; -webkit-font-smoothing: antialiased;

@@ -7,6 +7,7 @@ import { Avatar, CardHead, cls, focus, Icon, I, Modal, TagInput, Toggle, useToas
 import CategoryModal from '../components/CategoryModal.jsx';
 import { SHOP_COLOR, TINTS } from '../lib/constants.js';
 import { setPhotoPref, usePhotoPref } from '../lib/photoPref.js';
+import { setFontSize, useFontSize } from '../lib/fontSize.js';
 
 const Row = ({ title, sub, children }) => (
   <div className="flex items-center justify-between gap-4 px-4 py-3.5 border-b border-line last:border-0">
@@ -28,6 +29,7 @@ export default function Settings() {
   const nav = useNavigate();
   const s = t.settings;
   const photoPref = usePhotoPref();
+  const fontSize = useFontSize();
   const [cats, setCats] = useState(false);
   const [qr, setQr] = useState(null); // invite | view
   const [name, setName] = useState(t.table.name);
@@ -114,6 +116,7 @@ export default function Settings() {
             ))}
           </div>
         </div>
+        <Row title="글자 크기" sub="이 폰에서만"><Seg value={fontSize} options={[['s', '작게'], ['m', '중간'], ['l', '크게']]} onChange={setFontSize} /></Row>
         <Row title="메뉴를 사진으로 보기" sub="목록·달력에서 아이콘 대신 사진 (이 폰에서만)"><Toggle on={photoPref} onChange={setPhotoPref} label="메뉴를 사진으로 보기" /></Row>
         <Row title="다른 식탁 보기 · 새 식탁 만들기"><button type="button" onClick={() => nav('/')} className={cls.ghost + ' h-9'}>내 식탁</button></Row>
         <Row title="로그아웃"><button type="button" onClick={signOut} className={cls.ghost + ' h-9'}><Icon d={I.logout} size={15} />로그아웃</button></Row>

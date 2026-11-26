@@ -7,6 +7,7 @@ import { ToastProvider } from './components/ui.jsx';
 import { configured } from './lib/supabase.js';
 import './index.css';
 import './lib/keyboard.js';
+import './lib/fontSize.js';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
