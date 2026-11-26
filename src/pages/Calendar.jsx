@@ -33,7 +33,7 @@ export default function Calendar() {
   const byDate = useMemo(() => {
     const m = {};
     t.events.forEach(e => { (m[e.date] = m[e.date] || []).push(e); });
-    Object.values(m).forEach(l => l.sort((a, b) => t.getCat(a.category_id).order - t.getCat(b.category_id).order));
+    Object.values(m).forEach(l => l.sort(t.evCmp));
     return m;
   }, [t.events, t.categories]);
   const noteByDate = useMemo(() => {
@@ -231,13 +231,15 @@ function DayPanel({ date, onAdd }) {
   const t = useTable();
   const toast = useToast();
   const nav = useNavigate();
-  const list = t.events.filter(e => e.date === date).sort((a, b) => t.getCat(a.category_id).order - t.getCat(b.category_id).order);
+  const list = t.events.filter(e => e.date === date).sort(t.evCmp);
+  const sort = useHoldSort(list.map(e => e.id), ids => { t.reorderEvents(ids); toast('순서를 바꿨어요'); }, t.canWrite && list.length > 1);
+  const shownList = sort.order.map(id => list.find(e => e.id === id)).filter(Boolean);
   const adding = editorsOf(t.others, 'day', date);
   const remove = e => { t.deleteEvent(e); toast(`'${e.title}'을(를) 뺐어요`, { label: '되돌리기', fn: () => t.restoreEvent(e) }); };
   const [notesOpen, setNotesOpen] = useState(false);
   const noteCount = t.notes.filter(n => n.date === date).length;
   return (
-    <section className="rounded-[22px] border border-line bg-white" aria-label="선택한 날짜">
+    <section ref={sort.areaRef} className="rounded-[22px] border border-line bg-white" aria-label="선택한 날짜">
       <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-2">
         <h2 className="text-[15px] font-semibold text-ink">{longDate(date)}</h2>
         <div className="flex items-center gap-2">
@@ -250,15 +252,17 @@ function DayPanel({ date, onAdd }) {
         </div>
       </div>
       {adding.length > 0 && <p className="mx-6 mb-2 text-[13px] text-[#7D6420]">✎ {adding.map(p => p.nickname).join(', ')}님이 이 날 메뉴를 추가하는 중이에요</p>}
-      {list.length ? (
+      {list.length ? (<>
         <ul className="px-3 pb-3">
-          {list.map(e => {
+          {shownList.map(e => {
             const c = t.getCat(e.category_id);
             const { recipe, dish } = e.recipe_id ? t.findDish(e.recipe_id, e.dish_id) : {};
+            const dragging = sort.dragId === e.id;
             return (
-              <li key={e.id} className="flex items-center gap-3 px-2 py-2.5 border-b border-line last:border-0">
+              <li key={e.id} data-sort-id={e.id} {...sort.rowProps(e.id)}
+                className={`flex items-center gap-3 px-2 py-2.5 border-b border-line last:border-0 select-none [-webkit-touch-callout:none] transition-shadow ${dragging ? 'relative z-10 rounded-2xl bg-white border-transparent shadow-[0_10px_28px_-8px_rgba(46,53,47,.35)] scale-[1.02]' : ''}`}>
                 {dish ? <Thumb dish={dish} size={46} /> : <EventThumb cat={c} title={e.title} size={46} />}
-                <button type="button" disabled={!recipe} onClick={() => recipe && nav(`recipes/${recipe.id}?d=${encodeURIComponent(dish.id)}`)}
+                <button type="button" aria-disabled={!recipe} onClick={() => recipe && nav(`recipes/${recipe.id}?d=${encodeURIComponent(dish.id)}`)}
                   className={`flex-1 min-w-0 text-left rounded-lg ${recipe ? 'cursor-pointer' : 'cursor-default'} ${focus}`}>
                   <p className="text-[15px] text-ink font-medium leading-snug">{e.title}{recipe && <Icon d={I.right} size={14} className="inline ml-0.5 text-faintink" />}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -273,7 +277,8 @@ function DayPanel({ date, onAdd }) {
             );
           })}
         </ul>
-      ) : (
+        {t.canWrite && list.length > 1 && <p className="-mt-1 pb-3 text-center text-[12px] text-faintink">{sort.dragId ? '원하는 자리에서 손을 떼세요' : '메뉴를 꾹 누르면 순서를 바꿀 수 있어요'}</p>}
+      </>) : (
         <div className="px-5 pb-5 pt-1 text-[13px] text-muted leading-relaxed">
           아직 등록된 식단이 없어요.
           {t.canWrite && <button type="button" onClick={onAdd} className="mt-2 flex items-center gap-1 text-sage"><Icon d={I.plus} size={15} />메뉴 추가하기</button>}
@@ -282,6 +287,68 @@ function DayPanel({ date, onAdd }) {
       {notesOpen && <NotesSheet date={date} onClose={() => setNotesOpen(false)} />}
     </section>
   );
+}
+
+// 꾹 눌러서(0.45초) 위아래로 끌면 순서 바꾸기. 손을 떼면 onCommit(새 순서)
+function useHoldSort(ids, onCommit, enabled) {
+  const [drag, setDrag] = useState(null); // { id, to }
+  const st = useRef({});
+  const areaRef = useRef(null);
+  const key = ids.join(',');
+  useEffect(() => { st.current.ids = ids; }, [key]);
+  // 끄는 동안에는 화면이 스크롤되지 않게
+  useEffect(() => {
+    const el = areaRef.current; if (!el) return;
+    const block = e => { if (st.current.active) e.preventDefault(); };
+    el.addEventListener('touchmove', block, { passive: false });
+    return () => el.removeEventListener('touchmove', block);
+  }, []);
+  const stop = commit => {
+    const s = st.current;
+    clearTimeout(s.timer);
+    window.removeEventListener('pointermove', s.move);
+    window.removeEventListener('pointerup', s.up);
+    window.removeEventListener('pointercancel', s.cancel);
+    if (s.active) {
+      s.active = false;
+      s.justDragged = true; setTimeout(() => { s.justDragged = false; }, 250);
+      const d = s.drag;
+      if (commit && d) {
+        const next = s.ids.filter(x => x !== d.id); next.splice(d.to, 0, d.id);
+        if (next.join(',') !== s.ids.join(',')) onCommit(next);
+      }
+    }
+    s.drag = null; setDrag(null);
+  };
+  const rowProps = id => !enabled ? {} : {
+    onContextMenu: e => e.preventDefault(),
+    onClickCapture: e => { if (st.current.justDragged) { e.preventDefault(); e.stopPropagation(); } },
+    onPointerDown: e => {
+      if (e.button) return;
+      const s = st.current;
+      s.x = e.clientY; s.x0 = e.clientX;
+      s.move = ev => {
+        if (!s.active) { if (Math.abs(ev.clientY - s.x) > 8 || Math.abs(ev.clientX - s.x0) > 8) stop(false); return; }
+        const others = s.rects.filter(r => r.id !== id);
+        const to = others.filter(r => r.mid < ev.clientY).length;
+        if (!s.drag || s.drag.to !== to) { s.drag = { id, to }; setDrag(s.drag); }
+      };
+      s.up = () => stop(true);
+      s.cancel = () => stop(false);
+      window.addEventListener('pointermove', s.move);
+      window.addEventListener('pointerup', s.up);
+      window.addEventListener('pointercancel', s.cancel);
+      s.timer = setTimeout(() => {
+        s.rects = [...(areaRef.current?.querySelectorAll('[data-sort-id]') || [])].map(el => { const r = el.getBoundingClientRect(); return { id: el.dataset.sortId, mid: r.top + r.height / 2 }; });
+        s.active = true;
+        s.drag = { id, to: s.ids.indexOf(id) }; setDrag(s.drag);
+        try { navigator.vibrate?.(15); } catch (err) { /* 진동 없는 폰 */ }
+      }, 450);
+    },
+  };
+  let order = ids;
+  if (drag) { order = ids.filter(x => x !== drag.id); order.splice(drag.to, 0, drag.id); }
+  return { order, dragId: drag?.id || null, rowProps, areaRef };
 }
 
 // 한마디 창 (말풍선 버튼을 누르면 아래에서 올라와요)
