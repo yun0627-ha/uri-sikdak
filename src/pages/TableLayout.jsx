@@ -77,7 +77,7 @@ function BottomNav({ onAdd }) {
   const { shopping } = useTable();
   const left = shopping.filter(i => !i.checked).length;
   return (
-    <nav aria-label="주요 화면" className="fixed z-30 bottom-0 inset-x-0 sm:bottom-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-[480px] bg-white/95 backdrop-blur border-t sm:border border-line sm:rounded-full shadow-[0_8px_30px_-12px_rgba(46,53,47,.25)]"
+    <nav aria-label="주요 화면" className="kb-hide fixed z-30 bottom-0 inset-x-0 sm:bottom-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-[480px] bg-white/95 backdrop-blur border-t sm:border border-line sm:rounded-full shadow-[0_8px_30px_-12px_rgba(46,53,47,.25)]"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <ul className="grid grid-cols-5 items-center p-1">
         {TABS.map((t, i) => [i === 2 && (

@@ -6,6 +6,7 @@ import { AuthProvider } from './hooks/useAuth.jsx';
 import { ToastProvider } from './components/ui.jsx';
 import { configured } from './lib/supabase.js';
 import './index.css';
+import './lib/keyboard.js';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

@@ -20,3 +20,5 @@ body {
   .fade-in { animation: fade .18s ease-out; }
   @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 }
+/* 휴대폰 키보드가 떠 있는 동안 아래 고정 메뉴 숨기기 (lib/keyboard.js) */
+@media (pointer: coarse) { .kb-open .kb-hide { display: none !important; } }
