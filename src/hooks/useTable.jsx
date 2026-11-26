@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase.js';
 import { useAuth } from './useAuth.jsx';
 import { useToast } from '../components/ui.jsx';
 import { DEFAULT_SETTINGS } from '../lib/constants.js';
-import { addDays, toKey, makeIsBasic, norm, parseAmount, fmtAmount } from '../lib/utils.js';
+import { addDays, toKey, makeIsBasic, norm, parseAmount, fmtAmount, startOfWeek } from '../lib/utils.js';
 
 /*
   한 식탁의 모든 데이터를 불러오고, Supabase Realtime 으로 가족의 변경을 바로 반영해요.
@@ -28,6 +28,8 @@ export function TableProvider({ tableId, children }) {
   const [shopping, setShopping] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [favorites, setFavorites] = useState([]);
+  const [notes, setNotes] = useState([]);
+  const [wishes, setWishes] = useState([]);
   const [peers, setPeers] = useState([]);
   const chRef = useRef(null), editingRef = useRef(null);
 
@@ -38,7 +40,7 @@ export function TableProvider({ tableId, children }) {
 
   const load = useCallback(async () => {
     const since = toKey(addDays(new Date(), -400));
-    const [t, c, r, e, s, rv, f] = await Promise.all([
+    const [t, c, r, e, s, rv, f, nt, w] = await Promise.all([
       supabase.from('tables').select('*').eq('id', tableId).maybeSingle(),
       supabase.from('categories').select('*').eq('table_id', tableId).order('position'),
       supabase.from('recipes').select('*').eq('table_id', tableId).order('created_at', { ascending: false }),
@@ -46,11 +48,14 @@ export function TableProvider({ tableId, children }) {
       supabase.from('shopping_items').select('*').eq('table_id', tableId).order('created_at'),
       supabase.from('reviews').select('*').eq('table_id', tableId),
       supabase.from('favorites').select('*').eq('table_id', tableId).eq('user_id', user.id),
+      supabase.from('day_notes').select('*').eq('table_id', tableId).gte('date', since).order('created_at'),
+      supabase.from('wishes').select('*').eq('table_id', tableId).order('created_at'),
     ]);
     if (t.error) { setStatus('error'); return; }
     if (!t.data) { setStatus('notfound'); return; }
     setTable(t.data); setCategories(c.data || []); setRecipes(r.data || []); setEvents(e.data || []);
     setShopping(s.data || []); setReviews(rv.data || []); setFavorites(f.data || []);
+    setNotes(nt.data || []); setWishes(w.data || []);
     await loadMembers();
     setStatus('ready');
   }, [tableId, user.id, loadMembers]);
@@ -80,6 +85,8 @@ export function TableProvider({ tableId, children }) {
     watch('shopping_items', setShopping, byId);
     watch('categories', setCategories, byId, list => [...list].sort((a, b) => a.position - b.position));
     watch('reviews', setReviews, reviewKey);
+    watch('day_notes', setNotes, byId);
+    watch('wishes', setWishes, byId);
     ch.on('postgres_changes', { event: '*', schema: 'public', table: 'table_members', filter }, () => loadMembers());
     ch.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tables', filter: `id=eq.${tableId}` }, p => setTable(p.new));
     ch.on('presence', { event: 'sync' }, () => {
@@ -105,6 +112,8 @@ export function TableProvider({ tableId, children }) {
   const myRole = members.find(m => m.user_id === user.id)?.role || null;
   const canWrite = myRole === 'owner' || myRole === 'editor';
   const settings = { ...DEFAULT_SETTINGS, ...(table?.settings || {}) };
+  // 먹고싶어요 기간: 이번 주(주 시작일) · 이번 달(YYYY-MM) · 언젠가('')
+  const periodKey = (p, d = new Date()) => p === 'week' ? toKey(startOfWeek(d, settings.weekStart)) : p === 'month' ? toKey(d).slice(0, 7) : '';
   const isBasic = useMemo(() => makeIsBasic(settings.basics), [JSON.stringify(settings.basics)]);
   const run = async (promise, msg = '저장하지 못했어요. 다시 불러올게요.') => {
     const { error } = await promise;
@@ -118,6 +127,9 @@ export function TableProvider({ tableId, children }) {
     const row = { id: newId(), table_id: tableId, note: '', recipe_id: null, dish_id: null, ...ev, created_by: user.id, created_at: new Date().toISOString() };
     setEvents(l => [...l, row]);
     await run(supabase.from('events').insert(row)).catch(() => {});
+    // 먹고싶어요에 같은 메뉴가 있으면 '먹음'으로
+    const w = wishes.find(x => !x.done_date && norm(x.title) === norm(row.title));
+    if (w) updateWish(w, { done_date: row.date });
     return row;
   };
   const deleteEvent = async e => {
@@ -232,6 +244,41 @@ export function TableProvider({ tableId, children }) {
     }
   };
 
+  // ---- 날짜별 한마디 ----
+  const addNote = async (date, text) => {
+    const row = { id: newId(), table_id: tableId, date, user_id: user.id, text: text.trim().slice(0, 200), likes: [], created_at: new Date().toISOString() };
+    if (!row.text) return;
+    setNotes(l => [...l, row]);
+    await run(supabase.from('day_notes').insert(row)).catch(() => {});
+  };
+  const deleteNote = async n => {
+    setNotes(l => l.filter(x => x.id !== n.id));
+    await run(supabase.from('day_notes').delete().eq('id', n.id)).catch(() => {});
+  };
+  const toggleNoteLike = async n => {
+    const likes = n.likes?.includes(user.id) ? n.likes.filter(x => x !== user.id) : [...(n.likes || []), user.id];
+    setNotes(l => l.map(x => x.id === n.id ? { ...x, likes } : x));
+    await run(supabase.from('day_notes').update({ likes }).eq('id', n.id)).catch(() => {});
+  };
+
+  // ---- 먹고싶어요 ----
+  const addWish = async (title, period) => {
+    const t2 = title.trim().slice(0, 60);
+    if (!t2) return;
+    const row = { id: newId(), table_id: tableId, title: t2, period, period_key: periodKey(period), created_by: user.id, votes: [user.id], done_date: null, recipe_id: null, dish_id: null, created_at: new Date().toISOString() };
+    setWishes(l => [...l, row]);
+    await run(supabase.from('wishes').insert(row)).catch(() => {});
+  };
+  const updateWish = async (w, patch) => {
+    setWishes(l => l.map(x => x.id === w.id ? { ...x, ...patch } : x));
+    await run(supabase.from('wishes').update(patch).eq('id', w.id)).catch(() => {});
+  };
+  const toggleWishVote = w => updateWish(w, { votes: w.votes?.includes(user.id) ? w.votes.filter(x => x !== user.id) : [...(w.votes || []), user.id] });
+  const deleteWish = async w => {
+    setWishes(l => l.filter(x => x.id !== w.id));
+    await run(supabase.from('wishes').delete().eq('id', w.id)).catch(() => {});
+  };
+
   // ---- 카테고리 ----
   const addCategory = async c => {
     if (!guard()) return;
@@ -292,10 +339,11 @@ export function TableProvider({ tableId, children }) {
   };
 
   const value = {
-    status, table, settings, members, categories, recipes, events, shopping, reviews, favorites,
-    me: user.id, myRole, canWrite, isOwner: myRole === 'owner', others, setEditing, isBasic, getCat, profileOf, findDish, reload: load,
+    status, table, settings, members, categories, recipes, events, shopping, reviews, favorites, notes, wishes,
+    me: user.id, myRole, canWrite, periodKey, isOwner: myRole === 'owner', others, setEditing, isBasic, getCat, profileOf, findDish, reload: load,
     addEvent, deleteEvent, restoreEvent, addRecipes, updateRecipe, deleteRecipe, splitRecipe,
     addShopping, toggleShopping, deleteShopping, restoreShopping, clearChecked,
+    addNote, deleteNote, toggleNoteLike, addWish, updateWish, toggleWishVote, deleteWish,
     setReview, isFav, toggleFav, addCategory, updateCategory, deleteCategory, moveCategory,
     updateTable, updateSettings, rotateCode, setMemberRole, removeMember, deleteTable,
   };
