@@ -46,12 +46,11 @@ export const Spinner = ({ size = 16 }) => (
 
 export const Logo = ({ size = 38 }) => (
   <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true">
-    <path d="M14 9.5c-1.6-1.7 1.6-3.2 0-5M20 8.5c-1.6-1.7 1.6-3.2 0-5M26 9.5c-1.6-1.7 1.6-3.2 0-5" stroke="#9DB79A" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-    <path d="M7.5 19.5c.3-4.6 5.9-7.6 12.5-7.6s12.2 3 12.5 7.6z" fill="#fff" stroke="#58765B" strokeWidth="1.6" strokeLinejoin="round" />
-    <path d="M5 19.5h30c0 8.3-6.7 15-15 15s-15-6.7-15-15z" fill="#D6E7C4" stroke="#58765B" strokeWidth="1.6" strokeLinejoin="round" />
-    <ellipse cx="11.5" cy="27.5" rx="2.2" ry="1.3" fill="#F3C4BC" /><ellipse cx="28.5" cy="27.5" rx="2.2" ry="1.3" fill="#F3C4BC" />
-    <circle cx="15" cy="24.5" r="1.5" fill="#2E352F" /><circle cx="25" cy="24.5" r="1.5" fill="#2E352F" />
-    <path d="M18 27.2q2 2 4 0" stroke="#2E352F" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+    <rect width="40" height="40" rx="11" fill="#58765B" />
+    <path d="M15 12.5c-1.3-1.4 1.3-2.6 0-4M20 11.5c-1.3-1.4 1.3-2.6 0-4M25 12.5c-1.3-1.4 1.3-2.6 0-4" stroke="#CFE0C8" strokeWidth="1.7" fill="none" strokeLinecap="round" />
+    <path d="M9 19.5h22c0 6.1-4.9 11-11 11s-11-4.9-11-11z" fill="#fff" />
+    <path d="M7.5 19.5h25" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" />
+    <rect x="15.5" y="30.5" width="9" height="2.4" rx="1.2" fill="#fff" />
   </svg>
 );
 
