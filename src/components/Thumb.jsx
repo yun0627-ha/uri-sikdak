@@ -2,7 +2,21 @@ import { useState } from 'react';
 import { photosOf, usePhotoPref } from '../lib/photoPref.js';
 import PhotoGallery from './PhotoGallery.jsx';
 
-// 종류별 색 타일 + 흰 선 아이콘
+// 연한 색 칸 + 같은 계열 진한 선 아이콘 (base 색에서 자동으로 만들어요)
+const mix = (hex, to, t) => '#' + [1, 3, 5].map(i => Math.round(parseInt(hex.slice(i, i + 2), 16) * (1 - t) + to * t).toString(16).padStart(2, '0')).join('');
+const tone = hex => ({ bg: mix(hex, 255, 0.8), fg: mix(hex, 0, 0.1) });
+function Tile({ base, size, rounded, className, children }) {
+  const { bg, fg } = tone(base);
+  const box = size ? { width: size, height: size } : {};
+  const s = size ? Math.round(size * 0.52) : 40;
+  return (
+    <span className={`shrink-0 grid place-items-center ${rounded} ${className}`} style={{ ...box, background: bg }} aria-hidden="true">
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={fg} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{children}</svg>
+    </span>
+  );
+}
+
+// 종류별 아이콘
 const G = {
   main: { bg: '#C96A50', d: <><path d="M4 12h16a8 7 0 0 1-16 0z" /><path d="M7 12a5 4 0 0 1 10 0" /></> },
   soup: { bg: '#D4804F', d: <><path d="M5.5 11h13v4.5a3.5 3.5 0 0 1-3.5 3.5H9a3.5 3.5 0 0 1-3.5-3.5z" /><path d="M3.5 11h17M3.2 13.5h2.3M18.5 13.5h2.3" /><path d="M9.5 8c-.8-.9.8-1.6 0-2.5M14.5 8c-.8-.9.8-1.6 0-2.5" /></> },
@@ -27,12 +41,7 @@ export function EventThumb({ cat, title = '', size = 44, rounded = 'rounded-[10p
   const text = `${cat?.label || ''} ${title}`;
   const hit = E.find(([re]) => re.test(text));
   const [bg, d] = hit ? [hit[1], hit[2]] : cat?.grp === 'meal' ? MEAL_ICON : ETC_ICON;
-  const s = Math.round(size * 0.5);
-  return (
-    <span className={`shrink-0 grid place-items-center ${rounded} ${className}`} style={{ width: size, height: size, background: bg }} aria-hidden="true">
-      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{d}</svg>
-    </span>
-  );
+  return <Tile base={bg} size={size} rounded={rounded} className={className}>{d}</Tile>;
 }
 
 // 목록·달력용 작은 그림. photo 를 켜거나, 설정에서 '사진으로 보기'를 켜면 메뉴 사진
@@ -52,10 +61,5 @@ function SmallThumb({ dish, size, className, rounded, photo }) {
       className={`shrink-0 object-cover bg-[#EEF0EB] ${rounded} ${className}`} style={box} />;
   }
   const g = G[dish?.type] || G.main;
-  const s = size ? Math.round(size * 0.5) : 40;
-  return (
-    <span className={`shrink-0 grid place-items-center ${rounded} ${className}`} style={{ ...box, background: g.bg }} aria-hidden="true">
-      <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{g.d}</svg>
-    </span>
-  );
+  return <Tile base={g.bg} size={size} rounded={rounded} className={className}>{g.d}</Tile>;
 }
