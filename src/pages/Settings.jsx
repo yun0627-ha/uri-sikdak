@@ -91,7 +91,6 @@ export default function Settings() {
         <Row title="처음 열 때 보기"><Seg value={s.defaultView} options={[['2w', '2주'], ['month', '한 달']]} onChange={v => t.updateSettings({ defaultView: v })} disabled={!t.canWrite} /></Row>
         <Row title="한 주의 시작"><Seg value={s.weekStart} options={[[0, '일요일'], [1, '월요일']]} onChange={v => t.updateSettings({ weekStart: v })} disabled={!t.canWrite} /></Row>
         <Row title="끼니 · 일정 카테고리" sub={`${t.categories.length}개 · 이름, 색, 순서 바꾸기`}><button type="button" onClick={() => setCats(true)} className={cls.ghost + ' h-9'}>편집</button></Row>
-        <Row title="메뉴를 사진으로 보기" sub="목록·달력에서 아이콘 대신 사진 (내 폰에서만)"><Toggle on={photoPref} onChange={setPhotoPref} label="메뉴를 사진으로 보기" /></Row>
         <Row title="달력에 장볼 재료 표시" sub="날짜 칸에 '장볼 N'을 함께 보여줘요"><Toggle on={!!s.showShopOnCalendar} onChange={v => t.updateSettings({ showShopOnCalendar: v })} label="달력에 장볼 재료 표시" disabled={!t.canWrite} /></Row>
         <div className="px-4 py-3.5">
           <p className="text-[15px] text-ink">기본 양념</p>
@@ -115,6 +114,7 @@ export default function Settings() {
             ))}
           </div>
         </div>
+        <Row title="메뉴를 사진으로 보기" sub="목록·달력에서 아이콘 대신 사진 (이 폰에서만)"><Toggle on={photoPref} onChange={setPhotoPref} label="메뉴를 사진으로 보기" /></Row>
         <Row title="다른 식탁 보기 · 새 식탁 만들기"><button type="button" onClick={() => nav('/')} className={cls.ghost + ' h-9'}>내 식탁</button></Row>
         <Row title="로그아웃"><button type="button" onClick={signOut} className={cls.ghost + ' h-9'}><Icon d={I.logout} size={15} />로그아웃</button></Row>
         {!t.isOwner && <Row title="이 식탁에서 나가기" sub="다시 들어오려면 초대 링크가 필요해요">
