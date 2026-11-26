@@ -279,7 +279,7 @@ function ReviewSection({ recipe, dish }) {
             <div key={r.user_id} className="flex gap-2 px-3 py-2 border-b border-line">
               <Avatar p={p} size={22} />
               <div className="flex-1 min-w-0">
-                <p className="flex items-center gap-1.5 text-[12px]"><span className="text-ink font-semibold">{p.nickname}</span><MiniStars n={r.stars} /></p>
+                <p className="flex items-center gap-1.5 text-[12px]"><span className="text-ink font-semibold">{p.nickname}</span><MiniStars n={r.stars} />{r.updated_at && <span className="ml-auto text-[11px] text-faintink tabular-nums">{reviewDate(r.updated_at)}</span>}</p>
                 {r.text && <p className="text-[13px] text-ink mt-0.5 leading-snug">{r.text}</p>}
               </div>
             </div>
@@ -306,6 +306,13 @@ function ReviewSection({ recipe, dish }) {
     </>
   );
 }
+
+// 평가 날짜: 올해면 11/26, 지난해면 2025.11.26
+const reviewDate = iso => {
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  return d.getFullYear() === new Date().getFullYear() ? `${d.getMonth() + 1}/${d.getDate()}` : `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`;
+};
 
 // 동글동글한 별 (모서리가 둥근 별)
 const STAR_PATH = 'M12 3.2l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.5l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z';
