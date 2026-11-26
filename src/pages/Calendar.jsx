@@ -233,11 +233,20 @@ function DayPanel({ date, onAdd }) {
   const list = t.events.filter(e => e.date === date).sort((a, b) => t.getCat(a.category_id).order - t.getCat(b.category_id).order);
   const adding = editorsOf(t.others, 'day', date);
   const remove = e => { t.deleteEvent(e); toast(`'${e.title}'을(를) 뺐어요`, { label: '되돌리기', fn: () => t.restoreEvent(e) }); };
+  const [notesOpen, setNotesOpen] = useState(false);
+  const noteCount = t.notes.filter(n => n.date === date).length;
   return (
     <section className="rounded-[22px] border border-line bg-white" aria-label="선택한 날짜">
       <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-2">
         <h2 className="text-[15px] font-semibold text-ink">{longDate(date)}</h2>
-        {t.canWrite && <button type="button" onClick={onAdd} className={cls.primary + ' h-8 px-4 text-[13px]'}>추가</button>}
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setNotesOpen(true)} aria-label={`한마디${noteCount ? ` ${noteCount}개` : ''}`}
+            className={`relative h-8 w-8 grid place-items-center rounded-full bg-sage-faint text-sage hover:bg-sage-soft ${focus}`}>
+            <Icon d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.8-.8L3 20.5l1.4-4.3A8.2 8.2 0 0 1 3 11.5 8.6 8.6 0 0 1 12 3a8.6 8.6 0 0 1 9 8.5z" size={16} />
+            {noteCount > 0 && <span className="absolute -top-1 -right-1.5 min-w-[16px] h-4 px-1 rounded-full text-[10px] leading-4 font-semibold text-white text-center" style={{ background: NOTE_DOT }}>{noteCount}</span>}
+          </button>
+          {t.canWrite && <button type="button" onClick={onAdd} className={cls.primary + ' h-8 px-4 text-[13px]'}>추가</button>}
+        </div>
       </div>
       {adding.length > 0 && <p className="mx-6 mb-2 text-[13px] text-[#7D6420]">✎ {adding.map(p => p.nickname).join(', ')}님이 이 날 메뉴를 추가하는 중이에요</p>}
       {list.length ? (
@@ -269,13 +278,33 @@ function DayPanel({ date, onAdd }) {
           {t.canWrite && <button type="button" onClick={onAdd} className="mt-2 flex items-center gap-1 text-sage"><Icon d={I.plus} size={15} />메뉴 추가하기</button>}
         </div>
       )}
-      <DayNotes date={date} />
+      {notesOpen && <NotesSheet date={date} onClose={() => setNotesOpen(false)} />}
     </section>
   );
 }
 
+// 한마디 창 (말풍선 버튼을 누르면 아래에서 올라와요)
+function NotesSheet({ date, onClose }) {
+  useEffect(() => {
+    const h = e => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-[#2E352F]/30" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div role="dialog" aria-modal="true" aria-label="한마디" className="fade-in w-full sm:max-w-[560px] max-h-[85%] flex flex-col bg-white rounded-t-[28px] shadow-[0_-20px_60px_-20px_rgba(46,53,47,.35)]">
+        <div className="pt-2.5 flex justify-center"><span className="h-1.5 w-10 rounded-full bg-[#D8DDD4]" /></div>
+        <div className="px-5 pt-2 pb-1 flex items-center justify-between">
+          <h2 className="text-[15px] font-bold text-ink">{longDate(date)} 한마디</h2>
+          <button type="button" onClick={onClose} aria-label="닫기" className={`h-8 w-8 grid place-items-center rounded-full text-muted hover:text-ink ${focus}`}><Icon d={I.x} size={16} /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto pt-1 pb-5"><DayNotes date={date} bare /></div>
+      </div>
+    </div>
+  );
+}
+
 // 날짜별 한마디: "이날 메뉴 바꿔요", "치킨 어때?" 같은 짧은 대화
-function DayNotes({ date }) {
+function DayNotes({ date, bare }) {
   const t = useTable();
   const [text, setText] = useState('');
   const list = t.notes.filter(n => n.date === date).sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
@@ -288,8 +317,9 @@ function DayNotes({ date }) {
   const time = iso => { const d = new Date(iso); return isNaN(d) ? '' : `${d.getHours() < 12 ? '오전' : '오후'} ${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')}`; };
   const mine = n => n.user_id === t.me;
   return (
-    <div className="mx-4 mb-3 pt-2.5 border-t border-dashed border-[#D6DCD2]">
-      <p className="mb-1.5 text-[12px] font-semibold text-sage">한마디{list.length > 0 && ` ${list.length}`}</p>
+    <div className={bare ? 'mx-5' : 'mx-4 mb-3 pt-2.5 border-t border-dashed border-[#D6DCD2]'}>
+      {!bare && <p className="mb-1.5 text-[12px] font-semibold text-sage">한마디{list.length > 0 && ` ${list.length}`}</p>}
+      {bare && !list.length && <p className="py-4 text-center text-[13px] text-muted">아직 한마디가 없어요. 첫 마디를 남겨 보세요.</p>}
       {list.length > 0 && (
         <ul className="mb-1 flex flex-col gap-1.5">
           {list.map(n => {
