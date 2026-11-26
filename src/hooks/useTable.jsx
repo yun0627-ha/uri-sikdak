@@ -4,7 +4,7 @@ import { useAuth } from './useAuth.jsx';
 import { useToast } from '../components/ui.jsx';
 import { DEFAULT_SETTINGS } from '../lib/constants.js';
 import { addDays, toKey, makeIsBasic, norm, parseAmount, fmtAmount, startOfWeek } from '../lib/utils.js';
-import { guessExpires, guessFood, mergeAmount } from '../lib/food.js';
+import { guessExpires, guessFood, mergeAmount, sauceKeep } from '../lib/food.js';
 
 /*
   한 식탁의 모든 데이터를 불러오고, Supabase Realtime 으로 가족의 변경을 바로 반영해요.
@@ -253,7 +253,7 @@ export function TableProvider({ tableId, children }) {
   // ---- 냉장고 ----
   const addFridge = async items => {
     if (!guard()) return [];
-    const rows = items.map(it => ({ id: newId(), table_id: tableId, name: it.name.trim().slice(0, 40), amount: (it.amount || '').slice(0, 30), place: it.place || 'fridge', expires: it.expires || null, created_by: user.id, created_at: new Date().toISOString() }));
+    const rows = items.map(it => ({ id: newId(), table_id: tableId, name: it.name.trim().slice(0, 40), amount: (it.amount || '').slice(0, 30), place: it.place || 'fridge', keep: (it.place === 'sauce' ? it.keep || sauceKeep(it.name) : null), expires: it.expires || null, created_by: user.id, created_at: new Date().toISOString() }));
     setFridge(l => [...l, ...rows]);
     await run(supabase.from('fridge_items').insert(rows)).catch(() => {});
     return rows;

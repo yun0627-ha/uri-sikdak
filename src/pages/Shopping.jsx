@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTable } from '../hooks/useTable.jsx';
 import { Icon, I, RoundCheck, focus, useToast } from '../components/ui.jsx';
 import { shortDate } from '../lib/utils.js';
-import { PLACES, dday, foodEmoji, guessExpires, guessFood, placeOf } from '../lib/food.js';
+import { KEEPS, PLACES, dday, foodEmoji, guessExpires, guessFood, placeOf, sauceKeep } from '../lib/food.js';
 
 const TAB_KEY = 'shop-tab';
 const TONE = { r: 'bg-[#F7E3E0] text-[#A04A40]', y: 'bg-[#F6EED9] text-[#8A6A23]', g: 'bg-[#E6EEE3] text-[#4F6B4C]' };
@@ -138,6 +138,31 @@ function Fridge() {
     t.deleteFridge(f); setOpen(null);
     toast(`'${f.name}'을(를) 뺐어요`, { label: '되돌리기', fn: () => t.restoreFridge(f) });
   };
+  // 냉장고 재료 한 줄
+  const row = f => {
+    const dd = dday(f.expires);
+    const isOpen = open === f.id;
+    return (
+      <li key={f.id} data-fridge-item={f.id} className={`bg-white border rounded-2xl ${isOpen ? 'border-[#C9D6C4]' : 'border-line'}`}>
+        <div className="flex items-center pr-1.5">
+          <button type="button" onClick={() => t.canWrite && setOpen(isOpen ? null : f.id)} aria-expanded={isOpen}
+            className={`flex-1 min-w-0 flex items-center gap-3 pl-3.5 pr-1 py-3 text-left rounded-2xl ${focus}`}>
+            <Tile name={f.name} place={f.place} />
+            <span className="flex-1 min-w-0 text-[15px] text-ink font-medium truncate">{f.name}
+              {f.amount && <span className="ml-1.5 font-normal text-[12px] text-faintink">{f.amount}</span>}</span>
+            {dd && <span className={`shrink-0 text-[12px] px-2.5 py-0.5 rounded-full ${TONE[dd.tone]}`}>{dd.label}</span>}
+          </button>
+          {t.canWrite && <>
+            <button type="button" aria-label={`${f.name} 고치기`} onClick={() => setOpen(isOpen ? null : f.id)}
+              className={`h-8 w-8 grid place-items-center rounded-full ${isOpen ? 'text-sage bg-sage-faint' : 'text-faintink hover:text-ink'}`}><Icon d={I.edit} size={14} /></button>
+            <button type="button" aria-label={`${f.name} 빼기`} onClick={() => remove(f)}
+              className="h-8 w-8 grid place-items-center rounded-full text-faintink hover:text-[#9E4742] hover:bg-[#F7E8E6]"><Icon d={I.x} size={14} /></button>
+          </>}
+        </div>
+        {isOpen && <FridgeEdit f={f} onEaten={() => eaten(f)} />}
+      </li>
+    );
+  };
   const sortKey = f => f.expires || '9999-99-99';
   if (!t.fridge.length) {
     return (
@@ -174,32 +199,17 @@ function Fridge() {
                 <span className="inline-flex items-center gap-0.5">{folded ? '펼치기' : '접기'}<Icon d={I.down} size={13} className={`transition-transform ${folded ? '' : 'rotate-180'}`} /></span>
               </button>
             ) : <GroupHead right={<span className="tabular-nums">{list.length}</span>}><span>{p.label}</span></GroupHead>}
-            {!folded && <ul className="flex flex-col gap-2">
-              {list.map(f => {
-                const dd = dday(f.expires);
-                const isOpen = open === f.id;
-                return (
-                  <li key={f.id} data-fridge-item={f.id} className={`bg-white border rounded-2xl ${isOpen ? 'border-[#C9D6C4]' : 'border-line'}`}>
-                    <div className="flex items-center pr-1.5">
-                      <button type="button" onClick={() => t.canWrite && setOpen(isOpen ? null : f.id)} aria-expanded={isOpen}
-                        className={`flex-1 min-w-0 flex items-center gap-3 pl-3.5 pr-1 py-3 text-left rounded-2xl ${focus}`}>
-                        <Tile name={f.name} place={f.place} />
-                        <span className="flex-1 min-w-0 text-[15px] text-ink font-medium truncate">{f.name}
-                          {f.amount && <span className="ml-1.5 font-normal text-[12px] text-faintink">{f.amount}</span>}</span>
-                        {dd && <span className={`shrink-0 text-[12px] px-2.5 py-0.5 rounded-full ${TONE[dd.tone]}`}>{dd.label}</span>}
-                      </button>
-                      {t.canWrite && <>
-                        <button type="button" aria-label={`${f.name} 고치기`} onClick={() => setOpen(isOpen ? null : f.id)}
-                          className={`h-8 w-8 grid place-items-center rounded-full ${isOpen ? 'text-sage bg-sage-faint' : 'text-faintink hover:text-ink'}`}><Icon d={I.edit} size={14} /></button>
-                        <button type="button" aria-label={`${f.name} 빼기`} onClick={() => remove(f)}
-                          className="h-8 w-8 grid place-items-center rounded-full text-faintink hover:text-[#9E4742] hover:bg-[#F7E8E6]"><Icon d={I.x} size={14} /></button>
-                      </>}
-                    </div>
-                    {isOpen && <FridgeEdit f={f} onEaten={() => eaten(f)} />}
-                  </li>
+            {!folded && (p.id === 'sauce'
+              ? KEEPS.map(k => {
+                const sub = list.filter(f => (f.keep || sauceKeep(f.name)) === k.id);
+                return sub.length > 0 && (
+                  <div key={k.id} className="mb-2">
+                    <p className="mb-1.5 ml-1"><span className="inline-block px-2 py-0.5 rounded-full bg-[#EFEEE8] text-[11px] text-muted">{k.label} {sub.length}</span></p>
+                    <ul className="flex flex-col gap-2">{sub.map(row)}</ul>
+                  </div>
                 );
-              })}
-            </ul>}
+              })
+              : <ul className="flex flex-col gap-2">{list.map(row)}</ul>)}
           </section>
         );
       })}
@@ -250,11 +260,22 @@ function FridgeEdit({ f, onEaten }) {
         <span className="w-14 shrink-0 text-[12px] text-muted">보관</span>
         <div className="inline-flex rounded-full border border-line bg-canvas p-0.5">
           {PLACES.map(p => (
-            <button key={p.id} type="button" onClick={() => t.updateFridge(f, { place: p.id })}
+            <button key={p.id} type="button" onClick={() => t.updateFridge(f, p.id === 'sauce' ? { place: p.id, keep: f.keep || sauceKeep(f.name) } : { place: p.id })}
               className={`h-7 px-2.5 rounded-full text-[12px] ${f.place === p.id ? 'bg-sage text-white font-medium' : 'text-muted'}`}>{p.short || p.label}</button>
           ))}
         </div>
       </div>
+      {f.place === 'sauce' && (
+        <div className="flex items-center gap-2">
+          <span className="w-14 shrink-0 text-[12px] text-muted">소스 보관</span>
+          <div className="inline-flex rounded-full border border-line bg-canvas p-0.5">
+            {KEEPS.map(k => (
+              <button key={k.id} type="button" onClick={() => t.updateFridge(f, { keep: k.id })}
+                className={`h-7 px-3 rounded-full text-[12px] ${(f.keep || sauceKeep(f.name)) === k.id ? 'bg-sage text-white font-medium' : 'text-muted'}`}>{k.label}</button>
+            ))}
+          </div>
+        </div>
+      )}
       <label className="flex items-center gap-2">
         <span className="w-14 shrink-0 text-[12px] text-muted">양</span>
         <input value={amount} onChange={e => setAmount(e.target.value)} onBlur={saveAmount} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} placeholder="예: 반 단, 3개" autoComplete="off"
