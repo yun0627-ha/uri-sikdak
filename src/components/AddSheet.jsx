@@ -105,7 +105,7 @@ export default function AddSheet({ date: initDate, initRecipe, onClose }) {
               <>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-faintink"><Icon d={I.search} size={18} /></span>
-                  <input value={q} onChange={e => setQ(e.target.value)} onFocus={() => setSearchOn(true)} enterKeyHint="search" onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} placeholder="레시피 검색 (요리명 · #태그 · 재료)" aria-label="레시피 검색"
+                  <input value={q} name="recipe-search-nofill" autoComplete="off" onChange={e => setQ(e.target.value)} onFocus={() => setSearchOn(true)} enterKeyHint="search" onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} placeholder="레시피 검색 (요리명 · #태그 · 재료)" aria-label="레시피 검색"
                     className="w-full h-11 rounded-2xl border border-line bg-white pl-11 pr-4 text-base sm:text-[15px] placeholder:text-faintink focus:outline-none focus:border-sage focus:ring-2 focus:ring-sage/15" />
                 </div>
                 <div className="mt-3 flex gap-1.5 overflow-x-auto no-scrollbar">
@@ -147,11 +147,11 @@ export default function AddSheet({ date: initDate, initRecipe, onClose }) {
                 {!recipeOk && <p className="rounded-2xl px-4 py-3 text-[13px]" style={{ background: cat.bg, color: cat.fg }}>'{cat.label}'은(는) 레시피 없이 직접 적어요.</p>}
                 <div>
                   <label className={cls.label} htmlFor="m-title">{recipeOk ? '메뉴' : '내용'}</label>
-                  <input id="m-title" value={title} maxLength={60} onChange={e => setTitle(e.target.value)} className={cls.input + ' h-12 rounded-2xl'} placeholder={recipeOk ? '예: 엄마표 떡볶이, 배달 치킨' : '예: 친구들과 저녁 · 써브웨이'} autoFocus />
+                  <input id="m-title" name="menu-title-nofill" autoComplete="off" value={title} maxLength={60} onChange={e => setTitle(e.target.value)} className={cls.input + ' h-12 rounded-2xl'} placeholder={recipeOk ? '예: 엄마표 떡볶이, 배달 치킨' : '예: 친구들과 저녁 · 써브웨이'} autoFocus />
                 </div>
                 <div>
                   <label className={cls.label} htmlFor="m-note">메모 <span className="text-faintink font-normal">(선택)</span></label>
-                  <input id="m-note" value={note} onChange={e => setNote(e.target.value)} className={cls.input + ' h-12 rounded-2xl'} placeholder="장소, 시간, 누구랑" />
+                  <input id="m-note" name="menu-note-nofill" autoComplete="off" value={note} onChange={e => setNote(e.target.value)} className={cls.input + ' h-12 rounded-2xl'} placeholder="장소, 시간, 누구랑" />
                 </div>
                 <button type="submit" disabled={!title.trim()} className={cls.primary + ' h-12 text-[15px]'}>{shortDate(date)} {cat.label}에 추가</button>
               </form>
