@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTable, editorsOf } from '../hooks/useTable.jsx';
-import { ByLine, cls, focus, Icon, I, IconButton, Pill, useToast } from '../components/ui.jsx';
+import { Avatar, ByLine, cls, focus, Icon, I, IconButton, Pill, useToast } from '../components/ui.jsx';
 import AddSheet from '../components/AddSheet.jsx';
+import WishSheet, { useWishBuckets, findRecipeFor } from '../components/WishSheet.jsx';
 import { WEEKDAYS, SHOP_COLOR } from '../lib/constants.js';
 import { addDays, fromKey, labelDate, longDate, shortDate, startOfWeek, toKey, todayKey } from '../lib/utils.js';
 
 const VIEW_KEY = 'cal-view';
+export const NOTE_DOT = '#E9A55B'; // 날짜별 한마디 표시 (눈에 띄게 주황)
 
 export default function Calendar() {
   const t = useTable();
@@ -26,6 +28,8 @@ export default function Calendar() {
   const [armed, setArmed] = useState(null);
   const [drag, setDrag] = useState(null);
   const calRef = useRef(null);
+  const [wishOpen, setWishOpen] = useState(false);
+  const wish = useWishBuckets();
 
   const byDate = useMemo(() => {
     const m = {};
@@ -33,6 +37,11 @@ export default function Calendar() {
     Object.values(m).forEach(l => l.sort((a, b) => t.getCat(a.category_id).order - t.getCat(b.category_id).order));
     return m;
   }, [t.events, t.categories]);
+  const noteByDate = useMemo(() => {
+    const m = {};
+    t.notes.forEach(n => { m[n.date] = (m[n.date] || 0) + 1; });
+    return m;
+  }, [t.notes]);
   const shopByDate = useMemo(() => {
     const m = {};
     if (!t.settings.showShopOnCalendar) return m;
@@ -43,7 +52,7 @@ export default function Calendar() {
   const dropOn = async (date, item) => {
     if (!trayCat || !t.categories.some(c => c.id === trayCat)) { toast('서랍 위에서 넣을 끼니를 먼저 골라 주세요.'); return; }
     const cat = t.getCat(trayCat);
-    const ev = await t.addEvent({ date, category_id: trayCat, title: item.d.title, recipe_id: item.r.id, dish_id: item.d.id });
+    const ev = await t.addEvent({ date, category_id: trayCat, title: item.d.title, recipe_id: item.r?.id || null, dish_id: item.r ? item.d.id : null });
     if (ev) toast(`${shortDate(date)} ${cat.label}에 '${item.d.title}'`, { label: '되돌리기', fn: () => t.deleteEvent(ev) });
     setSelected(date);
   };
@@ -51,6 +60,11 @@ export default function Calendar() {
     if (armed) { dropOn(k, armed); setArmed(null); return; }
     setSelected(k);
     if (!trayOpen && window.innerWidth < 1024) setTimeout(() => document.getElementById('day-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 30);
+  };
+  const placeWish = w => {
+    const m = findRecipeFor(t.recipes, w.title);
+    setArmed({ key: `wish-${w.id}`, r: m?.r || null, d: m?.d || { title: w.title }, wish: w });
+    setWishOpen(false);
   };
   const openTray = () => { setTrayOpen(true); calRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 
@@ -74,10 +88,15 @@ export default function Calendar() {
     <div className={`grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] items-start ${trayOpen ? 'pb-40' : ''}`}>
       <section aria-label="식단 캘린더" className="px-1 sm:px-2" ref={calRef}>
         <StartGuide onOpenTray={openTray} />
-        <Link to="stats" className={`mb-3 flex items-center justify-between gap-2 rounded-xl bg-white/70 border border-line px-3.5 h-9 text-[12px] whitespace-nowrap text-muted hover:border-[#C5D2C0] ${focus}`}>
-          <span><b className="text-ink font-semibold">{Number(ym.slice(5))}월</b> · 식사 {monthMeals}끼{eatCat ? ` · ${eatCat.label.split('/')[0]} ${monthOut}번` : ''}</span>
-          <span className="inline-flex items-center gap-0.5 text-sage">통계<Icon d={I.right} size={14} /></span>
-        </Link>
+        <div className="mb-3 grid grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-1.5">
+          <Link to="stats" className={`flex items-center justify-between gap-1 rounded-xl bg-white/70 border border-line px-3 h-9 text-[12px] whitespace-nowrap text-muted hover:border-[#C5D2C0] ${focus}`}>
+            <span className="truncate"><b className="text-ink font-semibold">{Number(ym.slice(5))}월</b> · 식사 {monthMeals}끼{eatCat ? ` · ${eatCat.label.split('/')[0]} ${monthOut}` : ''}</span>
+            <span className="shrink-0 inline-flex items-center text-sage">통계<Icon d={I.right} size={13} /></span>
+          </Link>
+          <button type="button" onClick={() => setWishOpen(true)} className={`flex items-center justify-between gap-1 rounded-xl bg-sage-soft border border-[#C9D6C4] px-3 h-9 text-[12px] whitespace-nowrap text-sage-dark font-semibold ${focus}`}>
+            <span className="truncate">🙋 먹고싶어요 {wish.left > 0 && wish.left}</span><Icon d={I.right} size={13} className="shrink-0" />
+          </button>
+        </div>
         <div className="flex items-center justify-between gap-2 whitespace-nowrap">
           <div className="flex items-baseline gap-2 min-w-0">
             <span className="text-[20px] font-bold text-ink tabular-nums">{big}</span>
@@ -105,7 +124,7 @@ export default function Calendar() {
               {wk.map(d => {
                 const k = toKey(d);
                 return <DayCell key={k} d={d} k={k} inMonth={view !== 'month' || d.getMonth() === cursor.getMonth()} past={k < today} today={today}
-                  list={byDate[k] || []} shop={shopByDate[k] || 0} selected={selected} month={view === 'month'} onSelect={select}
+                  list={byDate[k] || []} shop={shopByDate[k] || 0} notes={noteByDate[k] || 0} selected={selected} month={view === 'month'} onSelect={select}
                   armed={!!armed} over={drag?.over === k}
                   onOpenRecipe={(rid, did) => nav(`recipes/${rid}?d=${encodeURIComponent(did || '')}`)} />;
               })}
@@ -119,12 +138,19 @@ export default function Calendar() {
         <DayPanel date={selected} onAdd={() => setSheet({ date: selected })} onOpenTray={openTray} trayOpen={trayOpen} />
       </div>
 
-      {t.canWrite && (trayOpen
+      {t.canWrite && !(armed?.wish && !trayOpen) && (trayOpen
         ? <RecipeTray trayCat={trayCat} setTrayCat={setTrayCat} meals={meals} armed={armed} setArmed={setArmed} setDrag={setDrag} onDrop={dropOn} onClose={() => { setTrayOpen(false); setArmed(null); }} />
         : <button type="button" onClick={openTray} className={`fixed z-30 right-4 bottom-[80px] sm:bottom-24 inline-flex items-center gap-1.5 h-11 pl-3.5 pr-4 rounded-full bg-sage text-white text-[13px] font-semibold shadow-[0_10px_30px_-10px_rgba(46,53,47,.5)] hover:bg-sage-dark ${focus}`}>
             <Icon d={I.book} size={16} />레시피 서랍
           </button>)}
 
+      {armed?.wish && !trayOpen && (
+        <div className="fade-in fixed z-30 inset-x-3 bottom-[84px] sm:left-1/2 sm:-translate-x-1/2 sm:w-[420px] flex items-center gap-2 rounded-2xl bg-ink text-white pl-4 pr-2 py-2 text-[13px] shadow-lg">
+          <span className="flex-1 min-w-0 truncate">'{armed.d.title}' · 넣을 날짜를 누르세요 <span className="text-white/60">({t.getCat(trayCat).label})</span></span>
+          <button type="button" onClick={() => { setArmed(null); setWishOpen(true); }} className="shrink-0 h-8 px-3 rounded-full bg-white/15 text-[12px]">취소</button>
+        </div>
+      )}
+      {wishOpen && <WishSheet onClose={() => setWishOpen(false)} onPlace={placeWish} />}
       {drag && (
         <div className="fixed z-[60] pointer-events-none -translate-x-1/2 -translate-y-[130%] rounded-full bg-ink text-white text-[13px] px-3.5 py-2 shadow-lg" style={{ left: drag.x, top: drag.y }}>
           {drag.item.d.title}{drag.over ? ` → ${shortDate(drag.over)}` : ''}
@@ -180,7 +206,7 @@ function EventChip({ e }) {
 }
 
 // 날짜 한 칸. 2주: 메뉴 칩 / 한 달: 끼니 색 점(선택하면 칩)
-function DayCell({ d, k, inMonth, list, shop, today, selected, onSelect, onOpenRecipe, month, past, armed, over }) {
+function DayCell({ d, k, inMonth, list, shop, notes, today, selected, onSelect, onOpenRecipe, month, past, armed, over }) {
   const t = useTable();
   const sel = k === selected, isToday = k === today, dow = d.getDay();
   const showChips = !month || sel;
@@ -188,11 +214,11 @@ function DayCell({ d, k, inMonth, list, shop, today, selected, onSelect, onOpenR
   const shown = list.slice(0, shop ? max - 1 : max), more = list.length + (shop ? 1 : 0) - max;
   const numColor = dow === 0 ? 'text-[#C0524C]' : dow === 6 ? 'text-[#4A6F92]' : 'text-ink';
   return (
-    <div role="button" tabIndex={0} data-date={k} aria-pressed={sel} aria-label={`${labelDate(k)}, ${list.length ? list.map(e => e.title).join(', ') : '비어 있음'}`}
+    <div role="button" tabIndex={0} data-date={k} aria-pressed={sel} aria-label={`${labelDate(k)}, ${list.length ? list.map(e => e.title).join(', ') : '비어 있음'}${notes ? `, 한마디 ${notes}개` : ''}`}
       onClick={() => onSelect(k)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(k); } }}
       className={`relative flex flex-col items-center rounded-[14px] px-[2px] sm:px-1 pt-1 pb-2 cursor-pointer transition-colors ${month ? 'min-h-[52px] sm:min-h-[76px]' : 'min-h-[108px] sm:min-h-[150px]'}
         ${over ? 'bg-sage-soft ring-2 ring-sage' : sel ? 'bg-[#E8ECE4]' : armed ? 'hover:bg-sage-soft' : 'hover:bg-white/70'} ${armed && !over ? 'outline outline-1 outline-dashed outline-[#C9D1C6]' : ''} ${focus}`}>
-      <span className={`grid place-items-center h-7 w-7 sm:h-8 sm:w-8 rounded-full text-[14px] sm:text-[15px] tabular-nums ${isToday ? 'bg-sage-check text-white font-bold' : `${numColor} font-semibold ${(!inMonth || past) && !sel ? 'opacity-35' : ''}`}`}>{d.getDate()}</span>
+      <span className={`relative grid place-items-center h-7 w-7 sm:h-8 sm:w-8 rounded-full text-[14px] sm:text-[15px] tabular-nums ${isToday ? 'bg-sage-check text-white font-bold' : `${numColor} font-semibold ${(!inMonth || past) && !sel ? 'opacity-35' : ''}`}`}>{d.getDate()}{notes > 0 && <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-[#F7F8F5]" style={{ background: NOTE_DOT }} aria-hidden="true" />}</span>
       {showChips ? (
         <span className={`mt-1 flex flex-col gap-[3px] w-full ${!inMonth && !sel ? 'opacity-40' : past && !sel ? 'opacity-70' : ''}`}>
           {shop > 0 && <span className="block w-full rounded-md px-0.5 py-[2px] text-[11px] font-medium text-center border border-dashed bg-white/80" style={{ color: SHOP_COLOR.fg, borderColor: SHOP_COLOR.fg + '55' }}>장볼 {shop}</span>}
@@ -323,6 +349,53 @@ function DayPanel({ date, onAdd, onOpenTray, trayOpen }) {
           {t.canWrite && !trayOpen && <button type="button" onClick={onOpenTray} className="mt-2 flex items-center gap-1 text-sage"><Icon d={I.book} size={15} />레시피 서랍에서 끌어다 놓기</button>}
         </div>
       )}
+      <DayNotes date={date} />
     </section>
+  );
+}
+
+// 날짜별 한마디: "이날 메뉴 바꿔요", "치킨 어때?" 같은 짧은 대화
+function DayNotes({ date }) {
+  const t = useTable();
+  const [text, setText] = useState('');
+  const list = t.notes.filter(n => n.date === date).sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+  const send = async e => {
+    e.preventDefault();
+    if (!text.trim()) return;
+    const v = text; setText('');
+    await t.addNote(date, v);
+  };
+  const time = iso => { const d = new Date(iso); return isNaN(d) ? '' : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+  return (
+    <div className="mx-3 mb-3 rounded-2xl bg-[#FBFAF6] border border-[#F0E6D6] px-3 py-2.5">
+      <p className="flex items-center gap-1.5 text-[12px] font-semibold text-[#9A6A2A]"><span className="h-2 w-2 rounded-full" style={{ background: NOTE_DOT }} />한마디{list.length > 0 && <span className="font-normal text-muted">{list.length}</span>}</p>
+      {list.length > 0 && (
+        <ul className="mt-1.5 flex flex-col gap-1.5">
+          {list.map(n => {
+            const p = t.profileOf(n.user_id) || { nickname: '?', tint: '#EFEFEF' };
+            const liked = n.likes?.includes(t.me);
+            return (
+              <li key={n.id} className="flex items-start gap-1.5">
+                <Avatar p={p} size={20} />
+                <div className="min-w-0 flex-1">
+                  <div className="inline-block max-w-full rounded-[4px_12px_12px_12px] bg-white border border-line px-2.5 py-1 text-[13px] text-ink leading-snug break-words">{n.text}</div>
+                  <div className="mt-0.5 flex items-center gap-2 text-[11px] text-faintink">
+                    <span>{p.nickname} · {time(n.created_at)}</span>
+                    <button type="button" onClick={() => t.toggleNoteLike(n)} aria-pressed={liked} className={liked ? 'text-sage font-semibold' : 'hover:text-sage'}>👍 {n.likes?.length || ''}</button>
+                    {(n.user_id === t.me || t.canWrite) && <button type="button" onClick={() => t.deleteNote(n)} className="hover:text-[#9E4742]">지우기</button>}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <form onSubmit={send} className="mt-2 flex gap-1.5">
+        <input value={text} onChange={e => setText(e.target.value)} maxLength={200} autoComplete="off" name="day-note-nofill" enterKeyHint="send"
+          placeholder={list.length ? '답하기…' : '예: 이날 메뉴 바꿔요 🙏 · 치킨 어때?'} aria-label="한마디 남기기"
+          className="flex-1 min-w-0 h-8 rounded-full border border-line bg-white px-3 text-base sm:text-[13px] placeholder:text-faintink focus:outline-none focus:border-sage" />
+        <button type="submit" disabled={!text.trim()} className={`shrink-0 h-8 px-3 rounded-full bg-sage text-white text-[12px] font-medium disabled:opacity-40 ${focus}`}>보내기</button>
+      </form>
+    </div>
   );
 }
