@@ -159,7 +159,7 @@ export default function RecipeForm({ recipe, initial, onClose, onSaved }) {
           <div className="mt-2 flex items-center gap-3">
             <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={e => { const f = e.target.files; if (f && f.length) analyze(f); e.target.value = ''; }} />
             <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} className="inline-flex items-center gap-1 text-[12px] text-sage"><Icon d={I.download} size={13} />캡처 사진으로 불러오기</button>
-            {busy && <span className="text-[12px] text-muted">분석 중… (영상은 30초쑤)</span>}
+            {busy && <span className="text-[12px] text-muted">분석 중… (영상은 30초쯤)</span>}
           </div>
           {err && <p className="mt-2 text-[12px] text-[#9E4742]">{err}</p>}
         </div>
