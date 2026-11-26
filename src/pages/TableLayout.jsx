@@ -16,7 +16,7 @@ function Shell() {
     return <FullScreenMessage title="식탁을 열 수 없어요">이 식탁의 멤버가 아니거나 식탁이 없어졌어요.<br /><Link to="/" className="text-sage underline">내 식탁 목록으로</Link></FullScreenMessage>;
   }
   return (
-    <div className="min-h-screen pb-28">
+    <div className="min-h-screen pb-24">
       <Header />
       {!t.canWrite && <p className="mx-auto max-w-[1240px] px-4 sm:px-6 -mt-1 mb-2 text-[13px] text-[#8A6D2F]">이 식탁은 보기만 할 수 있어요.</p>}
       <main className="mx-auto max-w-[1240px] px-3 sm:px-6"><Outlet /></main>
@@ -28,12 +28,12 @@ function Shell() {
 function Header() {
   const t = useTable();
   return (
-    <header className="mx-auto max-w-[1240px] px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+    <header className="mx-auto max-w-[1240px] px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
       <Link to="/" className={`flex items-center gap-2 min-w-0 rounded-full pr-2 ${focus}`} title="내 식탁 목록">
-        <Logo size={38} />
+        <Logo size={32} />
         <span className="min-w-0 leading-tight">
-          <span className="flex items-center gap-1 text-[16px] font-semibold text-ink"><span className="truncate">{t.table.name}</span><Icon d={I.down} size={14} className="text-muted shrink-0" /></span>
-          <span className="block text-[13px] text-muted">멤버 {t.members.length}명</span>
+          <span className="flex items-center gap-1 text-[15px] font-semibold text-ink"><span className="truncate">{t.table.name}</span><Icon d={I.down} size={14} className="text-muted shrink-0" /></span>
+          <span className="block text-[12px] text-muted">멤버 {t.members.length}명</span>
         </span>
       </Link>
       <div className="flex items-center gap-2">
@@ -75,12 +75,12 @@ function BottomNav() {
   return (
     <nav aria-label="주요 화면" className="fixed z-30 bottom-0 inset-x-0 sm:bottom-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-[480px] bg-white/95 backdrop-blur border-t sm:border border-line sm:rounded-full shadow-[0_8px_30px_-12px_rgba(46,53,47,.25)]"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      <ul className="grid grid-cols-4 p-1.5">
+      <ul className="grid grid-cols-4 p-1">
         {TABS.map(t => (
           <li key={t.label}>
             <NavLink to={t.to} end={t.end} replace
-              className={({ isActive }) => `relative w-full h-14 sm:h-12 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 rounded-full text-[13px] sm:text-[14px] font-medium transition-colors ${focus} ${isActive ? 'bg-sage-faint text-sage' : 'text-muted hover:text-ink'}`}>
-              <Icon d={t.icon} size={19} />
+              className={({ isActive }) => `relative w-full h-12 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 rounded-full text-[11px] sm:text-[13px] font-medium transition-colors ${focus} ${isActive ? 'bg-sage-faint text-sage' : 'text-muted hover:text-ink'}`}>
+              <Icon d={t.icon} size={18} />
               {t.label}
               {t.to === 'shopping' && left > 0 && (
                 <span className="absolute top-1 right-[12%] sm:static min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full text-[10px] font-semibold tabular-nums" style={{ background: SHOP_COLOR.bg, color: SHOP_COLOR.fg }}>{left}</span>

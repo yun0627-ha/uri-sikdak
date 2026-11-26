@@ -37,3 +37,36 @@ export function parsePasted(text) {
   if (!dishes.length) throw new Error('레시피 내용이 비어 있어요. Claude에게 자료를 더 보내 달라고 해 보세요.');
   return dishes;
 }
+
+// 링크만 넣으면 자동 정리 (Supabase 서버 함수 → Gemini)
+const AUTO_ERR = {
+  NO_KEY: '자동 정리가 아직 준비되지 않았어요. (Gemini 키 설정 필요)',
+  BAD_URL: '주소를 확인해 주세요. https:// 로 시작해야 해요.',
+  NO_CONTENT: '이 링크는 글을 읽을 수 없어요. 레시피 화면을 캡처해서 [캡처로 불러오기]를 눌러 주세요.',
+  LIMIT: '오늘 무료 사용량을 다 썼어요. 잠시 뒤나 내일 다시 해 주세요.',
+  FAILED: '정리하지 못했어요. 잠시 뒤 다시 하거나 [캡처로 불러오기]를 써 주세요.',
+};
+// 사진을 줄여서 base64 로 (전송량 줄이기)
+export function shrinkImage(file, max = 1400) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const r = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * r); c.height = Math.round(img.height * r);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(img.src);
+      resolve({ mime: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.82).split(',')[1] });
+    };
+    img.onerror = () => reject(new Error('사진을 읽지 못했어요.'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+export async function autoParse(supabase, url, images) {
+  const { data, error } = await supabase.functions.invoke('parse-recipe', { body: images ? { images } : { url } });
+  if (error) throw new Error(AUTO_ERR.FAILED);
+  if (data?.error) throw new Error(AUTO_ERR[data.error] || AUTO_ERR.FAILED);
+  const dishes = normalizeDishes(data);
+  if (!dishes.length) throw new Error('레시피를 찾지 못했어요. 레시피 화면을 캡처해서 [캡처로 불러오기]를 눌러 주세요.');
+  return dishes;
+}
