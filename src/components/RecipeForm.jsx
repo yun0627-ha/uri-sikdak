@@ -3,7 +3,8 @@ import { useTable, useEditingPresence, editorsOf } from '../hooks/useTable.jsx';
 import { EditingBanner, Icon, I, Spinner, focus, useToast } from './ui.jsx';
 import { RECIPE_TYPES } from '../lib/constants.js';
 import { clone, detectSource, emptyDish, uid } from '../lib/utils.js';
-import { autoParse, shrinkImage } from '../lib/ai.js';
+import { autoParse, fetchPhoto, shrinkImage, uploadPhoto } from '../lib/ai.js';
+import Thumb from './Thumb.jsx';
 import { supabase } from '../lib/supabase.js';
 
 // 작은 글씨용 공통 스타일
@@ -33,9 +34,9 @@ export function textToSteps(text) {
   return parts.map(s => s.replace(/\s*\n\s*/g, ' ').trim()).filter(Boolean);
 }
 
-const toDraft = d => ({ id: d.id || uid('d'), title: d.title || '', type: d.type || 'main', servings: d.servings || 2, tags: d.tags || [],
+const toDraft = d => ({ id: d.id || uid('d'), photo: d.photo || '', title: d.title || '', type: d.type || 'main', servings: d.servings || 2, tags: d.tags || [],
   ing: ingToText(d.ingredients || []), steps: stepsToText(d.steps || []), memo: [d.tips?.cooking, d.tips?.tools, d.tips?.memo].filter(Boolean).join('\n') });
-const fromDraft = d => ({ id: d.id, title: d.title.trim(), type: d.type, servings: d.servings, tags: d.tags,
+const fromDraft = d => ({ id: d.id, photo: d.photo || '', title: d.title.trim(), type: d.type, servings: d.servings, tags: d.tags,
   ingredients: textToIng(d.ing), steps: textToSteps(d.steps), tips: { cooking: '', tools: '', memo: d.memo.trim() } });
 
 function Grow({ value, onChange, placeholder, minRows = 4, ...rest }) {
@@ -79,7 +80,8 @@ export default function RecipeForm({ recipe, initial, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [newLink, setNewLink] = useState('');
-  const fileRef = useRef(null);
+  const fileRef = useRef(null), photoRef = useRef(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const d = drafts[active] || drafts[0];
   const set = (k, v) => setDrafts(ds => ds.map((x, i) => i === active ? { ...x, [k]: v } : x));
 
@@ -97,6 +99,18 @@ export default function RecipeForm({ recipe, initial, onClose, onSaved }) {
       toast(result.length > 1 ? `메뉴 ${result.length}개를 불러왔어요` : '레시피를 불러왔어요');
     } catch (e) { setErr(e.message); }
     setBusy(false);
+  };
+
+  const pickPhoto = async file => {
+    setPhotoBusy(true);
+    try { set('photo', await uploadPhoto(supabase, file)); } catch (e) { toast(e.message); }
+    setPhotoBusy(false);
+  };
+  const grabPhoto = async () => {
+    setPhotoBusy(true);
+    const p = await fetchPhoto(supabase, url.trim());
+    if (p) set('photo', p); else toast('이 링크에서는 사진을 찾지 못했어요. 직접 올려 주세요.');
+    setPhotoBusy(false);
   };
 
   const dishes = drafts.map(fromDraft);
@@ -145,7 +159,7 @@ export default function RecipeForm({ recipe, initial, onClose, onSaved }) {
           <div className="mt-2 flex items-center gap-3">
             <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={e => { const f = e.target.files; if (f && f.length) analyze(f); e.target.value = ''; }} />
             <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} className="inline-flex items-center gap-1 text-[12px] text-sage"><Icon d={I.download} size={13} />캡처 사진으로 불러오기</button>
-            {busy && <span className="text-[12px] text-muted">분석 중… (영상은 30초쯤)</span>}
+            {busy && <span className="text-[12px] text-muted">분석 중… (영상은 30초쑤)</span>}
           </div>
           {err && <p className="mt-2 text-[12px] text-[#9E4742]">{err}</p>}
         </div>
@@ -160,6 +174,19 @@ export default function RecipeForm({ recipe, initial, onClose, onSaved }) {
         )}
 
         <div className={card}>
+          <div className="flex items-center gap-3 mb-3 pb-3 border-b border-line">
+            <Thumb dish={d} size={64} rounded="rounded-xl" />
+            <div className="flex-1 min-w-0">
+              <span className="block text-[12px] text-muted">메뉴 사진</span>
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <button type="button" onClick={() => photoRef.current?.click()} disabled={photoBusy} className="h-7 px-3 rounded-full border border-line text-[12px] text-ink disabled:opacity-40">{d.photo ? '사진 바꾸기' : '사진 올리기'}</button>
+                {!d.photo && /^https?:\/\//.test(url.trim()) && <button type="button" onClick={grabPhoto} disabled={photoBusy} className="h-7 px-3 rounded-full border border-[#C9D6C4] text-[12px] text-sage disabled:opacity-40">링크에서 가져오기</button>}
+                {d.photo && <button type="button" onClick={() => set('photo', '')} className="h-7 px-2 text-[12px] text-faintink">지우기</button>}
+                {photoBusy && <Spinner size={14} />}
+              </div>
+            </div>
+            <input ref={photoRef} type="file" accept="image/*" hidden onChange={e => { const f = e.target.files?.[0]; if (f) pickPhoto(f); e.target.value = ''; }} />
+          </div>
           <label className={label} htmlFor="r-title">레시피명</label>
           <input id="r-title" value={d.title} maxLength={60} onChange={e => set('title', e.target.value)} placeholder="예: 인생 무뼈닭발" className={box + ' h-10'} />
           <div className="mt-3 pt-3 border-t border-line">
