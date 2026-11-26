@@ -44,14 +44,9 @@ export const Spinner = ({ size = 16 }) => (
   <svg className="spin" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.2-8.6" /></svg>
 );
 
+// 앱 아이콘 (public/icon.svg 하나만 바꾸면 앱 전체가 같이 바뀌어요)
 export const Logo = ({ size = 38 }) => (
-  <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true">
-    <rect width="40" height="40" rx="11" fill="#58765B" />
-    <path d="M15 12.5c-1.3-1.4 1.3-2.6 0-4M20 11.5c-1.3-1.4 1.3-2.6 0-4M25 12.5c-1.3-1.4 1.3-2.6 0-4" stroke="#CFE0C8" strokeWidth="1.7" fill="none" strokeLinecap="round" />
-    <path d="M9 19.5h22c0 6.1-4.9 11-11 11s-11-4.9-11-11z" fill="#fff" />
-    <path d="M7.5 19.5h25" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" />
-    <rect x="15.5" y="30.5" width="9" height="2.4" rx="1.2" fill="#fff" />
-  </svg>
+  <img src="/icon.svg" width={size} height={size} alt="" aria-hidden="true" className="shrink-0" draggable="false" />
 );
 
 export function IconButton({ label, onClick, children, className = '', disabled }) {
