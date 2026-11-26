@@ -48,7 +48,7 @@ export const PLACES = [
   { id: 'fridge', label: '냉장', bg: '#E6EEE3' },
   { id: 'freezer', label: '냉동', bg: '#E4ECF2' },
   { id: 'room', label: '실온', bg: '#F6EED9' },
-  { id: 'sauce', label: '소스 · 양념', short: '소스', bg: '#F3E6DD', fold: true },
+  { id: 'sauce', label: '소스 · 양념', short: '소스', bg: '#EFEEE8', fold: true },
 ];
 export const placeOf = id => PLACES.find(p => p.id === id) || PLACES[0];
 

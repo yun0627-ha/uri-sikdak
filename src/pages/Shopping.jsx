@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTable } from '../hooks/useTable.jsx';
 import { Icon, I, RoundCheck, focus, useToast } from '../components/ui.jsx';
 import { shortDate } from '../lib/utils.js';
@@ -37,8 +37,9 @@ export default function Shopping() {
 }
 
 // 품목 + 수량 한 줄 입력
-function AddBar({ placeholder, onAdd }) {
-  const [name, setName] = useState(''), [amt, setAmt] = useState('');
+function AddBar({ placeholder, onAdd, onType }) {
+  const [name, setNameRaw] = useState(''), [amt, setAmt] = useState('');
+  const setName = v => { setNameRaw(v); onType?.(v); };
   const submit = async e => {
     e.preventDefault();
     if (!name.trim()) return;
@@ -114,6 +115,14 @@ function Fridge() {
   const t = useTable();
   const toast = useToast();
   const [open, setOpen] = useState(null);
+  const [q, setQ] = useState('');
+  // 펼친 재료 밖을 누르면 닫기
+  useEffect(() => {
+    if (!open) return undefined;
+    const h = e => { if (!e.target.closest?.(`[data-fridge-item="${open}"]`)) setOpen(null); };
+    document.addEventListener('pointerdown', h);
+    return () => document.removeEventListener('pointerdown', h);
+  }, [open]);
   // 소스 · 양념처럼 접어 두는 칸 (이 폰에서 기억)
   const [shown, setShown] = useState(() => { try { return JSON.parse(localStorage.getItem('fridge-unfold') || '{}'); } catch (e) { return {}; } });
   const toggleFold = id => setShown(o => { const n = { ...o, [id]: !o[id] }; try { localStorage.setItem('fridge-unfold', JSON.stringify(n)); } catch (e) { /* 무시 */ } return n; });
@@ -134,19 +143,31 @@ function Fridge() {
       </>
     );
   }
+  const key = s2 => String(s2 || '').replace(/\s/g, '').toLowerCase();
+  const hits = q.trim() ? t.fridge.filter(f => key(f.name).includes(key(q))) : t.fridge;
   return (
     <>
-      {t.canWrite && <AddBar placeholder="냉장고에 있는 것 (예: 계란)" onAdd={add} />}
+      {t.canWrite ? <AddBar placeholder="찾기 · 넣기 (예: 계란)" onAdd={add} onType={setQ} />
+        : <input value={q} onChange={e => setQ(e.target.value)} placeholder="냉장고에서 찾기" className="h-11 rounded-2xl border border-line bg-white px-3.5 text-[14px] focus:outline-none focus:border-sage" />}
+      {q.trim() && !hits.length && (
+        <div className="px-1 py-4 text-center text-[13px] text-muted">
+          '{q.trim()}'은(는) 냉장고에 없어요.
+          {t.canWrite && <div className="mt-2 flex justify-center gap-2">
+            <button type="button" onClick={() => { t.addShopping([{ name: q.trim(), amount: '', unit: '', sources: [] }]); toast(`'${q.trim()}'을(를) 장바구니에 담았어요`); }} className="h-8 px-3.5 rounded-full border border-line bg-white text-[13px] text-ink">장바구니에 담기</button>
+          </div>}
+        </div>
+      )}
       {PLACES.map(p => {
-        const list = t.fridge.filter(f => (f.place || 'fridge') === p.id).sort((a, b) => sortKey(a).localeCompare(sortKey(b)) || String(a.created_at).localeCompare(String(b.created_at)));
+        const list = hits.filter(f => (f.place || 'fridge') === p.id).sort((a, b) => sortKey(a).localeCompare(sortKey(b)) || String(a.created_at).localeCompare(String(b.created_at)));
         if (!list.length) return null;
-        const folded = p.fold && !shown[p.id];
+        const folded = p.fold && !shown[p.id] && !q.trim();
         return (
           <section key={p.id}>
             {p.fold ? (
               <button type="button" onClick={() => toggleFold(p.id)} aria-expanded={!folded}
-                className={`w-full flex items-center justify-between mt-2 px-3.5 h-11 rounded-2xl border border-dashed border-[#DCCFC4] text-[13px] text-muted ${focus}`} style={{ background: folded ? p.bg + '66' : 'transparent' }}>
-                <span>{p.label} <span className="tabular-nums text-faintink">{list.length}</span></span>
+                className={`w-full flex items-center justify-between mt-3 px-3.5 py-3 rounded-2xl bg-white border border-line text-left ${focus}`}>
+                <span className="flex items-center gap-3"><span className="h-9 w-9 grid place-items-center rounded-[10px] text-[18px] leading-none" style={{ background: p.bg }} aria-hidden="true">🧂</span>
+                  <span className="text-[15px] text-ink font-medium">{p.label} <span className="ml-0.5 font-normal text-[12px] text-faintink tabular-nums">{list.length}</span></span></span>
                 <span className="inline-flex items-center gap-0.5 text-[12px] text-faintink">{folded ? '펼치기' : '접기'}<Icon d={I.down} size={14} className={`transition-transform ${folded ? '' : 'rotate-180'}`} /></span>
               </button>
             ) : <GroupHead right={<span className="tabular-nums">{list.length}</span>}><span>{p.label}</span></GroupHead>}
@@ -155,7 +176,7 @@ function Fridge() {
                 const dd = dday(f.expires);
                 const isOpen = open === f.id;
                 return (
-                  <li key={f.id} className="bg-white border border-line rounded-2xl">
+                  <li key={f.id} data-fridge-item={f.id} className="bg-white border border-line rounded-2xl">
                     <button type="button" onClick={() => t.canWrite && setOpen(isOpen ? null : f.id)} aria-expanded={isOpen}
                       className={`w-full flex items-center gap-3 px-3.5 py-3 text-left rounded-2xl ${focus}`}>
                       <Tile name={f.name} place={f.place} />
@@ -171,16 +192,40 @@ function Fridge() {
           </section>
         );
       })}
-      {t.canWrite && <p className="mt-1 text-center text-[12px] text-faintink">재료를 누르면 장소 · 양 · 유통기한을 고칠 수 있어요</p>}
+      {t.canWrite && !q.trim() && <p className="mt-1 text-center text-[12px] text-faintink">재료를 누르면 장소 · 양 · 유통기한을 고칠 수 있어요</p>}
     </>
   );
 }
 
-// 냉장고 재료 고치기 (누르면 아래로 펼쳐져요)
+// 280315 → 2028-03-15 (잘못된 날짜면 null)
+const fromDigits = d => {
+  if (!/^\d{6}$/.test(d)) return null;
+  const y = 2000 + +d.slice(0, 2), m = +d.slice(2, 4), day = +d.slice(4, 6);
+  const dt = new Date(y, m - 1, day);
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === day ? `${y}-${d.slice(2, 4)}-${d.slice(4, 6)}` : null;
+};
+const toDigits = iso => (iso ? iso.slice(2, 4) + iso.slice(5, 7) + iso.slice(8, 10) : '');
+const dotted = d => [d.slice(0, 2), d.slice(2, 4), d.slice(4, 6)].filter(Boolean).join('.');
+const longKo = iso => { const [y, m, d] = iso.split('-').map(Number); return `${y}년 ${m}월 ${d}일까지`; };
+
+// 냉장고 재료 고치기 (누르면 아래로 펼쳐지고, 밖을 누르면 닫혀요)
 function FridgeEdit({ f, onEaten }) {
   const t = useTable();
   const [amount, setAmount] = useState(f.amount || '');
-  const saveAmount = () => { if (amount.trim() !== (f.amount || '')) t.updateFridge(f, { amount: amount.trim().slice(0, 30) }); };
+  const [digits, setDigits] = useState(toDigits(f.expires));
+  const latest = useRef({});
+  latest.current = { f, amount, digits };
+  const saveAmount = () => { const { f: x, amount: a } = latest.current; if (a.trim() !== (x.amount || '')) t.updateFridge(x, { amount: a.trim().slice(0, 30) }); };
+  const typeDate = v => {
+    const d = v.replace(/\D/g, '').slice(0, 6);
+    setDigits(d);
+    const iso = fromDigits(d);
+    if (iso && iso !== f.expires) t.updateFridge(f, { expires: iso });
+    if (!d && f.expires) t.updateFridge(f, { expires: null });
+  };
+  // 닫힐 때 쓰던 양도 저장
+  useEffect(() => () => saveAmount(), []);
+  const iso = fromDigits(digits);
   return (
     <div className="px-3.5 pb-3 pt-1 border-t border-line flex flex-col gap-2.5">
       <div className="flex items-center gap-2 pt-2">
@@ -197,17 +242,19 @@ function FridgeEdit({ f, onEaten }) {
         <input value={amount} onChange={e => setAmount(e.target.value)} onBlur={saveAmount} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }} placeholder="예: 반 단, 3개" autoComplete="off"
           className="flex-1 min-w-0 h-8 border-b border-[#C9D6C4] bg-transparent px-0.5 text-[14px] placeholder:text-faintink focus:outline-none focus:border-sage" />
       </label>
-      <label className="flex items-center gap-2">
-        <span className="w-14 shrink-0 text-[12px] text-muted">유통기한</span>
-        <input type="date" value={f.expires || ''} onChange={e => t.updateFridge(f, { expires: e.target.value || null })}
-          className="flex-1 min-w-0 h-8 border-b border-[#C9D6C4] bg-transparent px-0.5 text-[14px] focus:outline-none focus:border-sage" />
-        {f.expires && <button type="button" onClick={() => t.updateFridge(f, { expires: null })} className="shrink-0 h-8 px-1 text-[12px] text-faintink">지우기</button>}
-      </label>
-      {(
-        <div className="flex justify-end pt-0.5">
-          <button type="button" onClick={onEaten} className="h-8 px-3.5 rounded-full border border-line text-[13px] text-ink hover:border-sage">다 먹었어요</button>
-        </div>
-      )}
+      <div>
+        <label className="flex items-center gap-2">
+          <span className="w-14 shrink-0 text-[12px] text-muted">유통기한</span>
+          <input value={dotted(digits)} onChange={e => typeDate(e.target.value)} inputMode="numeric" enterKeyHint="done" autoComplete="off" placeholder="숫자 6개 (예: 280315)"
+            onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+            className="flex-1 min-w-0 h-8 border-b border-[#C9D6C4] bg-transparent px-0.5 text-[15px] tracking-wider tabular-nums placeholder:text-faintink placeholder:tracking-normal focus:outline-none focus:border-sage" />
+          {digits && <button type="button" onClick={() => typeDate('')} className="shrink-0 h-8 px-1 text-[12px] text-faintink">지우기</button>}
+        </label>
+        <p className="ml-16 mt-1 text-[12px] text-faintink">{iso ? <span className="text-sage">→ {longKo(iso)}</span> : digits.length === 6 ? <span className="text-[#A04A40]">날짜를 다시 확인해 주세요</span> : '포장지 날짜를 숫자로 (년 월 일)'}</p>
+      </div>
+      <div className="flex justify-end pt-0.5">
+        <button type="button" onClick={onEaten} className="h-8 px-3.5 rounded-full border border-line text-[13px] text-ink hover:border-sage">다 먹었어요</button>
+      </div>
     </div>
   );
 }
