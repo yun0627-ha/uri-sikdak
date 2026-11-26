@@ -382,7 +382,7 @@ function DayNotes({ date }) {
                 <span className="mb-0.5 ml-1 text-[12px] text-muted">{p.nickname}{me && ' (나)'}</span>
                 <div className="flex items-end gap-1.5 max-w-[92%]">
                   <button type="button" onClick={() => t.toggleNoteLike(n)} aria-label={liked ? '좋아요 취소' : '좋아요'}
-                    className={`min-w-0 text-left px-3 py-1.5 text-[14px] text-[#2D4538] leading-snug break-words rounded-[12px_12px_12px_4px] ${me ? 'bg-[#DCE8D6]' : 'bg-[#EEF3EA]'}`}>
+                    className={`min-w-0 text-left px-3 py-1.5 text-[14px] text-sage-dark leading-snug break-words rounded-[4px_14px_14px_14px] ${me ? 'bg-sage-soft' : 'bg-sage-faint'}`}>
                     {n.text}{likes > 0 && <span className="ml-1 text-[12px] text-sage">👍{likes > 1 ? likes : ''}</span>}
                   </button>
                   <span className="shrink-0 flex flex-col items-start text-[11px] leading-tight text-faintink">
