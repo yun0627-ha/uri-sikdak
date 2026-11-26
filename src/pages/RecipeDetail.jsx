@@ -64,6 +64,7 @@ export default function RecipeDetail() {
     setNewLink('');
   };
   const pf = PLATFORM[recipe.source] || PLATFORM['블로그'];
+  const tips = [['cooking', '조리 팁'], ['tools', '화력 · 도구 팁'], ['memo', '메모']].filter(([k]) => dish.tips?.[k]?.trim());
   const author = t.profileOf(recipe.created_by);
 
   return (
@@ -105,7 +106,7 @@ export default function RecipeDetail() {
         </div>
         {dish.tags.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{dish.tags.map(x => <span key={x} className="h-8 inline-flex items-center px-3 rounded-full border border-line text-[13px] text-muted">#{x}</span>)}</div>}
         <nav aria-label="바로가기" className="sticky top-0 z-10 -mx-5 sm:-mx-8 mt-4 px-5 sm:px-8 py-2 bg-white/95 backdrop-blur border-b border-line flex gap-1.5 overflow-x-auto no-scrollbar">
-          {[['sec-ing', '재료'], ['sec-steps', '순서'], ['sec-tips', '팁'], ['sec-review', '별점'], ['sec-cart', '장보기'], ['sec-links', '링크']].map(([id, l]) => (
+          {[['sec-ing', '재료'], ['sec-steps', '순서'], ...(tips.length ? [['sec-tips', '팁']] : []), ['sec-review', '별점'], ['sec-cart', '장보기'], ['sec-links', '링크']].map(([id, l]) => (
             <button key={id} type="button" onClick={() => { if (id === 'sec-links') setLinksOpen(true); setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 20); }}
               className={`shrink-0 h-8 px-3.5 rounded-full text-[13px] bg-canvas border border-line text-ink hover:border-sage ${focus}`}>{l}</button>
           ))}
@@ -164,16 +165,18 @@ export default function RecipeDetail() {
           {!dish.steps.length && <p className="text-sm text-muted">등록된 조리 순서가 없어요.</p>}
         </ol>
 
-        <div id="sec-tips" className="scroll-mt-16" />
-        <SectionTitle>메모 & 팁</SectionTitle>
-        <div className="rounded-2xl border border-line divide-y divide-line">
-          {[['cooking', '조리 팁'], ['tools', '화력 · 도구 팁'], ['memo', '메모']].map(([k, l]) => (
-            <div key={k} className="px-5 py-3.5">
-              <p className="text-[13px] font-medium text-sage mb-1">{l}</p>
-              <p className={`text-[15px] leading-relaxed whitespace-pre-line ${dish.tips?.[k] ? 'text-ink' : 'text-faintink'}`}>{dish.tips?.[k] || '아직 없어요. 편집에서 추가할 수 있어요.'}</p>
-            </div>
-          ))}
-        </div>
+        {tips.length > 0 && <>
+          <div id="sec-tips" className="scroll-mt-16" />
+          <SectionTitle>메모 & 팁</SectionTitle>
+          <div className="rounded-2xl border border-line divide-y divide-line">
+            {tips.map(([k, l]) => (
+              <div key={k} className="px-5 py-3.5">
+                <p className="text-[13px] font-medium text-sage mb-1">{l}</p>
+                <p className="text-[15px] leading-relaxed whitespace-pre-line text-ink">{dish.tips[k]}</p>
+              </div>
+            ))}
+          </div>
+        </>}
 
         <div id="sec-review" className="scroll-mt-16" />
         <ReviewSection recipe={recipe} dish={dish} />
@@ -236,19 +239,8 @@ export default function RecipeDetail() {
           <Icon d={isVideo(recipe.source) ? I.video : I.link} size={19} sw={2} />{recipe.source}에서 보기
         </a>
       )}
-      {t.canWrite && (confirm === 'delete' ? (
-        <div className="fade-in mt-3 rounded-full border border-[#D9A9A5] bg-[#FCF6F5] pl-5 pr-2 h-14 flex items-center gap-2 text-[14px] text-[#9E4742]">
-          <span className="flex-1 truncate">정말 삭제할까요? 달력 일정은 남아요.</span>
-          <button type="button" onClick={() => setConfirm(null)} className="h-10 px-4 rounded-full text-muted hover:bg-white">취소</button>
-          <button type="button" onClick={async () => { await t.deleteRecipe(recipe.id); toast('레시피를 삭제했어요'); nav('..', { relative: 'path', replace: true }); }} className="h-10 px-5 rounded-full bg-[#9E4742] text-white font-medium">삭제</button>
-        </div>
-      ) : (
-        <button type="button" onClick={() => setConfirm('delete')} className={`mt-3 w-full flex items-center justify-center gap-2 h-14 rounded-full border border-[#D9A9A5] bg-white text-[16px] text-[#9E4742] hover:bg-[#FCF6F5] ${focus}`}>
-          <Icon d={I.trash} size={18} />레시피 삭제
-        </button>
-      ))}
 
-      {modal === 'form' && <RecipeForm recipe={recipe} onClose={() => setModal(null)} onSaved={(rid, did) => { setModal(null); if (rid !== recipe.id) nav(`../${rid}?d=${encodeURIComponent(did)}`, { relative: 'path', replace: true }); else setSp({ d: did }, { replace: true }); }} />}
+      {modal === 'form' && <RecipeForm recipe={recipe} onClose={() => setModal(null)} onDeleted={() => nav('..', { relative: 'path', replace: true })} onSaved={(rid, did) => { setModal(null); if (rid !== recipe.id) nav(`../${rid}?d=${encodeURIComponent(did)}`, { relative: 'path', replace: true }); else setSp({ d: did }, { replace: true }); }} />}
       {modal === 'cook' && <CookingMode dish={dish} servings={servings} hideBasic={hideBasic} isBasic={t.isBasic} onClose={() => setModal(null)} />}
       {modal === 'plan' && <AddSheet date={todayKey()} initRecipe={recipe.id} onClose={() => setModal(null)} />}
     </div>
