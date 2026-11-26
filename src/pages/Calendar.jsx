@@ -192,7 +192,7 @@ function DayCell({ d, k, inMonth, list, shop, today, selected, onSelect, onOpenR
       onClick={() => onSelect(k)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(k); } }}
       className={`relative flex flex-col items-center rounded-[14px] px-[2px] sm:px-1 pt-1 pb-2 cursor-pointer transition-colors ${month ? 'min-h-[52px] sm:min-h-[76px]' : 'min-h-[108px] sm:min-h-[150px]'}
         ${over ? 'bg-sage-soft ring-2 ring-sage' : sel ? 'bg-[#E8ECE4]' : armed ? 'hover:bg-sage-soft' : 'hover:bg-white/70'} ${armed && !over ? 'outline outline-1 outline-dashed outline-[#C9D1C6]' : ''} ${focus}`}>
-      <span className={`grid place-items-center h-7 w-7 sm:h-8 sm:w-8 rounded-full text-[14px] sm:text-[15px] tabular-nums ${isToday ? 'bg-[#D6E7C4] text-[#2D4538] font-bold' : `${numColor} font-semibold ${(!inMonth || past) && !sel ? 'opacity-35' : ''}`}`}>{d.getDate()}</span>
+      <span className={`grid place-items-center h-7 w-7 sm:h-8 sm:w-8 rounded-full text-[14px] sm:text-[15px] tabular-nums ${isToday ? 'bg-sage-check text-white font-bold' : `${numColor} font-semibold ${(!inMonth || past) && !sel ? 'opacity-35' : ''}`}`}>{d.getDate()}</span>
       {showChips ? (
         <span className={`mt-1 flex flex-col gap-[3px] w-full ${!inMonth && !sel ? 'opacity-40' : past && !sel ? 'opacity-70' : ''}`}>
           {shop > 0 && <span className="block w-full rounded-md px-0.5 py-[2px] text-[11px] font-medium text-center border border-dashed bg-white/80" style={{ color: SHOP_COLOR.fg, borderColor: SHOP_COLOR.fg + '55' }}>장볼 {shop}</span>}
