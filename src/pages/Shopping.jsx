@@ -114,6 +114,9 @@ function Fridge() {
   const t = useTable();
   const toast = useToast();
   const [open, setOpen] = useState(null);
+  // 소스 · 양념처럼 접어 두는 칸 (이 폰에서 기억)
+  const [shown, setShown] = useState(() => { try { return JSON.parse(localStorage.getItem('fridge-unfold') || '{}'); } catch (e) { return {}; } });
+  const toggleFold = id => setShown(o => { const n = { ...o, [id]: !o[id] }; try { localStorage.setItem('fridge-unfold', JSON.stringify(n)); } catch (e) { /* 무시 */ } return n; });
   const add = async (name, amount) => {
     const place = guessFood(name).place;
     await t.addFridge([{ name, amount, place, expires: guessExpires(name, place) }]);
@@ -137,10 +140,17 @@ function Fridge() {
       {PLACES.map(p => {
         const list = t.fridge.filter(f => (f.place || 'fridge') === p.id).sort((a, b) => sortKey(a).localeCompare(sortKey(b)) || String(a.created_at).localeCompare(String(b.created_at)));
         if (!list.length) return null;
+        const folded = p.fold && !shown[p.id];
         return (
           <section key={p.id}>
-            <GroupHead right={<span className="tabular-nums">{list.length}</span>}><span>{p.label}</span></GroupHead>
-            <ul className="flex flex-col gap-2">
+            {p.fold ? (
+              <button type="button" onClick={() => toggleFold(p.id)} aria-expanded={!folded}
+                className={`w-full flex items-center justify-between mt-2 px-3.5 h-11 rounded-2xl border border-dashed border-[#DCCFC4] text-[13px] text-muted ${focus}`} style={{ background: folded ? p.bg + '66' : 'transparent' }}>
+                <span>{p.label} <span className="tabular-nums text-faintink">{list.length}</span></span>
+                <span className="inline-flex items-center gap-0.5 text-[12px] text-faintink">{folded ? '펼치기' : '접기'}<Icon d={I.down} size={14} className={`transition-transform ${folded ? '' : 'rotate-180'}`} /></span>
+              </button>
+            ) : <GroupHead right={<span className="tabular-nums">{list.length}</span>}><span>{p.label}</span></GroupHead>}
+            {!folded && <ul className={`flex flex-col gap-2 ${p.fold ? 'mt-2' : ''}`}>
               {list.map(f => {
                 const dd = dday(f.expires);
                 const isOpen = open === f.id;
@@ -157,7 +167,7 @@ function Fridge() {
                   </li>
                 );
               })}
-            </ul>
+            </ul>}
           </section>
         );
       })}
@@ -178,7 +188,7 @@ function FridgeEdit({ f, onEaten }) {
         <div className="inline-flex rounded-full border border-line bg-canvas p-0.5">
           {PLACES.map(p => (
             <button key={p.id} type="button" onClick={() => t.updateFridge(f, { place: p.id })}
-              className={`h-7 px-3 rounded-full text-[12px] ${f.place === p.id ? 'bg-sage text-white font-medium' : 'text-muted'}`}>{p.label}</button>
+              className={`h-7 px-2.5 rounded-full text-[12px] ${f.place === p.id ? 'bg-sage text-white font-medium' : 'text-muted'}`}>{p.short || p.label}</button>
           ))}
         </div>
       </div>

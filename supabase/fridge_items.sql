@@ -4,7 +4,7 @@ create table if not exists public.fridge_items (
   table_id    uuid not null references public.tables(id) on delete cascade,
   name        text not null check (char_length(name) between 1 and 40),
   amount      text not null default '' check (char_length(amount) <= 30),
-  place       text not null default 'fridge' check (place in ('fridge', 'freezer', 'room')),
+  place       text not null default 'fridge' check (place in ('fridge', 'freezer', 'room', 'sauce')),
   expires     date,
   created_by  uuid references public.profiles(id) on delete set null,
   created_at  timestamptz not null default now()
