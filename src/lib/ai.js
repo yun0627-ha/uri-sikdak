@@ -69,5 +69,24 @@ export async function autoParse(supabase, url, images) {
   if (data?.error) throw new Error(AUTO_ERR[data.error] || AUTO_ERR.FAILED);
   const dishes = normalizeDishes(data);
   if (!dishes.length) throw new Error('레시피를 찾지 못했어요. 레시피 화면을 캡처해서 [캡처로 불러오기]를 눌러 주세요.');
-  return dishes;
+  const photo = typeof data?.photo === 'string' ? data.photo : '';
+  return photo ? dishes.map(d => ({ ...d, photo })) : dishes;
+}
+
+// 링크의 대표 사진만 가져오기 (예전에 저장한 레시피용). 실패하면 ''
+export async function fetchPhoto(supabase, url) {
+  try {
+    const { data } = await supabase.functions.invoke('parse-recipe', { body: { photoFor: url } });
+    return typeof data?.photo === 'string' ? data.photo : '';
+  } catch (e) { return ''; }
+}
+
+// 내 사진 올리기 → 주소
+export async function uploadPhoto(supabase, file) {
+  const { data } = await shrinkImage(file, 900);
+  const blob = await (await fetch(`data:image/jpeg;base64,${data}`)).blob();
+  const path = `u/${(crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(16).slice(2))}.jpg`;
+  const { error } = await supabase.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+  if (error) throw new Error('사진을 올리지 못했어요. 다시 해 주세요.');
+  return supabase.storage.from('photos').getPublicUrl(path).data.publicUrl;
 }
