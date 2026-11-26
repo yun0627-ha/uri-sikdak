@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTable, editorsOf } from '../hooks/useTable.jsx';
-import { useAuth } from '../hooks/useAuth.jsx';
 import { Avatar, ByLine, Check, cls, EditingBanner, Empty, focus, HeartButton, Icon, I, IconButton, RoundCheck, SectionTitle, Stepper, TypePill, useToast } from '../components/ui.jsx';
 import RecipeForm from '../components/RecipeForm.jsx';
 import CookingMode from '../components/CookingMode.jsx';
@@ -249,48 +248,42 @@ export default function RecipeDetail() {
 
 function ReviewSection({ recipe, dish }) {
   const t = useTable();
-  const { profile } = useAuth();
   const toast = useToast();
-  const list = reviewsFor(t.reviews, recipe.id, dish.id).sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)));
-  const mine = list.find(r => r.user_id === t.me);
-  const [editing, setEditing] = useState(false);
-  const [stars, setStars] = useState(0);
-  const [text, setText] = useState('');
-  useEffect(() => { setEditing(false); }, [dish.id]);
-  const showForm = !mine || editing;
-  useEffect(() => { if (showForm) { setStars(mine?.stars || 0); setText(mine?.text || ''); } }, [showForm, mine?.updated_at]);
+  const list = reviewsFor(t.reviews, recipe.id, dish.id).sort((a, b) => String(a.created_at || a.updated_at).localeCompare(String(b.created_at || b.updated_at)));
+  const [editId, setEditId] = useState(null);
+  useEffect(() => { setEditId(null); }, [dish.id]);
   const avg = avgStars(t.reviews, recipe.id, dish.id);
-  const save = async () => {
-    if (!stars) return;
-    await t.setReview(recipe.id, dish.id, { stars, text: text.trim().slice(0, 80) });
-    toast(mine ? '한줄평을 고쳤어요' : '한줄평을 남겼어요');
-    setEditing(false);
-  };
   const remove = r => {
-    t.setReview(recipe.id, dish.id, null);
-    setEditing(false);
-    toast('내 평가를 지웠어요', { label: '되돌리기', fn: () => t.setReview(recipe.id, dish.id, { stars: r.stars, text: r.text }) });
+    t.deleteReview(r);
+    toast('한줄평을 지웠어요', { label: '되돌리기', fn: () => t.restoreReview(r) });
   };
   return (
     <>
-      <SectionTitle right={avg ? <span className="inline-flex items-center gap-1 text-[13px] font-bold text-[#9A7428]"><CuteStar on size={13} />{avg.toFixed(1)}<span className="text-[12px] font-normal text-muted">{list.length}명</span></span> : null}>별점 · 한줄평</SectionTitle>
+      <SectionTitle right={avg ? <span className="inline-flex items-center gap-1 text-[13px] font-bold text-[#9A7428]"><CuteStar on size={13} />{avg.toFixed(1)}<span className="text-[12px] font-normal text-muted">{list.length}개</span></span> : null}>별점 · 한줄평</SectionTitle>
       <div className="rounded-2xl border border-line">
         {list.map(r => {
           const p = t.profileOf(r.user_id) || { nickname: '?', tint: '#EFEFEF' };
           const me = r.user_id === t.me;
-          if (me && editing) return null;
+          if (me && editId === r.id) {
+            return (
+              <div key={r.id} className="px-3 py-2.5 border-b border-line bg-sage-faint/40">
+                <ReviewForm init={r} title="한줄평 고치기" submit="저장" onCancel={() => setEditId(null)}
+                  onSave={async v => { await t.updateReview(r, v); setEditId(null); toast('한줄평을 고쳤어요'); }} />
+              </div>
+            );
+          }
           return (
-            <div key={r.user_id} className="flex gap-2 px-3 py-2 border-b border-line last:border-0">
+            <div key={r.id} className="flex gap-2 px-3 py-2 border-b border-line">
               <Avatar p={p} size={22} />
               <div className="flex-1 min-w-0">
                 <p className="flex items-center gap-1.5 text-[12px]"><span className="text-ink font-semibold">{p.nickname}{me && <span className="ml-0.5 font-normal text-muted">(나)</span>}</span><MiniStars n={r.stars} /></p>
-                {r.text && <p className="text-[13px] text-ink mt-0.5 leading-snug">{r.text}</p>}
+                {r.text && <p className="text-[13px] text-ink mt-0.5 leading-snug break-words">{r.text}</p>}
               </div>
               <span className="shrink-0 flex flex-col items-end gap-0.5 text-[11px] leading-tight text-faintink">
-                {r.updated_at && <span className="tabular-nums">{reviewDate(r.updated_at)}</span>}
+                <span className="tabular-nums">{reviewDate(r.created_at || r.updated_at)}</span>
                 {me && (
                   <span className="flex items-center gap-2">
-                    <button type="button" onClick={() => setEditing(true)} className="py-1 hover:text-sage">수정</button>
+                    <button type="button" onClick={() => setEditId(r.id)} className="py-1 hover:text-sage">수정</button>
                     <button type="button" onClick={() => remove(r)} className="py-1 hover:text-[#9E4742]">지우기</button>
                   </span>
                 )}
@@ -298,25 +291,40 @@ function ReviewSection({ recipe, dish }) {
             </div>
           );
         })}
-        {showForm && (
-          <div className={`px-3 py-2.5 ${list.length && !(mine && editing && list.length === 1) ? 'border-t border-line' : ''}`}>
-            <div className="flex items-center justify-between">
-              <p className="text-[12px] font-medium text-sage">{editing ? '내 평가 고치기' : `${profile?.nickname || '나'}의 평가`}</p>
-              <div className="flex items-center" role="radiogroup" aria-label="별점">
-                {[1, 2, 3, 4, 5].map(n => (
-                  <button key={n} type="button" role="radio" aria-checked={stars === n} aria-label={`${n}점`} onClick={() => setStars(n === stars ? 0 : n)}
-                    className={`h-8 w-7 grid place-items-center rounded-full active:scale-90 transition-transform ${focus}`}><CuteStar on={n <= stars} size={20} /></button>
-                ))}
-              </div>
-            </div>
-            <div className="mt-1.5 flex items-center gap-2 border-b border-[#C9D6C4] focus-within:border-sage">
-              <input value={text} maxLength={80} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') save(); }} enterKeyHint="done" autoComplete="off"
-                placeholder={stars ? '한줄평 (안 써도 돼요)' : '별을 먼저 눌러 주세요'} aria-label="한줄평" className="flex-1 min-w-0 h-9 bg-transparent px-0.5 text-[14px] placeholder:text-faintink focus:outline-none" />
-              {editing && <button type="button" onClick={() => setEditing(false)} className="shrink-0 h-9 px-1 text-[13px] text-muted">취소</button>}
-              <button type="button" disabled={!stars} onClick={save} className="shrink-0 h-9 px-1 text-[13px] font-semibold text-sage disabled:opacity-40">{editing ? '저장' : '남기기'}</button>
-            </div>
-          </div>
-        )}
+        <div className="px-3 py-2.5">
+          <ReviewForm title={list.some(r => r.user_id === t.me) ? '한줄평 더 남기기' : '한줄평 남기기'} submit="남기기"
+            onSave={async v => { await t.addReview(recipe.id, dish.id, v); toast('한줄평을 남겼어요'); }} />
+        </div>
+      </div>
+    </>
+  );
+}
+
+// 별 + 한 줄 입력 (새로 남기기 · 고치기 같이 씀)
+function ReviewForm({ init, title, submit, onSave, onCancel }) {
+  const [stars, setStars] = useState(init?.stars || 0);
+  const [text, setText] = useState(init?.text || '');
+  const save = async () => {
+    if (!stars) return;
+    await onSave({ stars, text: text.trim() });
+    if (!init) { setStars(0); setText(''); }
+  };
+  return (
+    <>
+      <div className="flex items-center justify-between">
+        <p className="text-[12px] font-medium text-sage">{title}</p>
+        <div className="flex items-center" role="radiogroup" aria-label="별점">
+          {[1, 2, 3, 4, 5].map(n => (
+            <button key={n} type="button" role="radio" aria-checked={stars === n} aria-label={`${n}점`} onClick={() => setStars(n === stars ? 0 : n)}
+              className={`h-8 w-7 grid place-items-center rounded-full active:scale-90 transition-transform ${focus}`}><CuteStar on={n <= stars} size={20} /></button>
+          ))}
+        </div>
+      </div>
+      <div className="mt-1.5 flex items-center gap-2 border-b border-[#C9D6C4] focus-within:border-sage">
+        <input value={text} maxLength={80} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') save(); }} enterKeyHint="done" autoComplete="off"
+          placeholder={stars ? '한줄평 (안 써도 돼요)' : '별을 먼저 눌러 주세요'} aria-label="한줄평" className="flex-1 min-w-0 h-9 bg-transparent px-0.5 text-[14px] placeholder:text-faintink focus:outline-none" />
+        {onCancel && <button type="button" onClick={onCancel} className="shrink-0 h-9 px-1 text-[13px] text-muted">취소</button>}
+        <button type="button" disabled={!stars} onClick={save} className="shrink-0 h-9 px-1 text-[13px] font-semibold text-sage disabled:opacity-40">{submit}</button>
       </div>
     </>
   );
