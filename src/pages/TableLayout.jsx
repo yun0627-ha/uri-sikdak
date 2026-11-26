@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Link, NavLink, Outlet, useParams } from 'react-router-dom';
 import { TableProvider, useTable } from '../hooks/useTable.jsx';
 import { Avatar, FullScreenMessage, Icon, I, Logo, Spinner, focus } from '../components/ui.jsx';
 import { SHOP_COLOR } from '../lib/constants.js';
+import QuickAdd from '../components/QuickAdd.jsx';
 
 export default function TableLayout() {
   const { tableId } = useParams();
@@ -11,6 +13,7 @@ export default function TableLayout() {
 
 function Shell() {
   const t = useTable();
+  const [adding, setAdding] = useState(false);
   if (t.status === 'loading') return <FullScreenMessage><Spinner size={22} /></FullScreenMessage>;
   if (t.status !== 'ready') {
     return <FullScreenMessage title="식탁을 열 수 없어요">이 식탁의 멤버가 아니거나 식탁이 없어졌어요.<br /><Link to="/" className="text-sage underline">내 식탁 목록으로</Link></FullScreenMessage>;
@@ -20,7 +23,8 @@ function Shell() {
       <Header />
       {!t.canWrite && <p className="mx-auto max-w-[1240px] px-4 sm:px-6 -mt-1 mb-2 text-[13px] text-[#8A6D2F]">이 식탁은 보기만 할 수 있어요.</p>}
       <main className="mx-auto max-w-[1240px] px-3 sm:px-6"><Outlet /></main>
-      <BottomNav />
+      <BottomNav onAdd={t.canWrite ? () => setAdding(true) : null} />
+      {adding && <QuickAdd onClose={() => setAdding(false)} />}
     </div>
   );
 }
@@ -69,14 +73,18 @@ const TABS = [
   { to: 'shopping', label: '장바구니', icon: I.cart },
   { to: 'settings', label: '설정', icon: I.gear },
 ];
-function BottomNav() {
+function BottomNav({ onAdd }) {
   const { shopping } = useTable();
   const left = shopping.filter(i => !i.checked).length;
   return (
     <nav aria-label="주요 화면" className="fixed z-30 bottom-0 inset-x-0 sm:bottom-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-[480px] bg-white/95 backdrop-blur border-t sm:border border-line sm:rounded-full shadow-[0_8px_30px_-12px_rgba(46,53,47,.25)]"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      <ul className="grid grid-cols-4 p-1">
-        {TABS.map(t => (
+      <ul className="grid grid-cols-5 items-center p-1">
+        {TABS.map((t, i) => [i === 2 && (
+          <li key="add" className="flex justify-center">
+            {onAdd && <button type="button" onClick={onAdd} aria-label="레시피 추가" className={`-mt-6 h-14 w-14 grid place-items-center rounded-full bg-sage text-white shadow-[0_8px_20px_-6px_rgba(46,53,47,.45)] active:scale-95 transition-transform ${focus}`}><Icon d={I.plus} size={26} sw={2.4} /></button>}
+          </li>
+        ), (
           <li key={t.label}>
             <NavLink to={t.to} end={t.end} replace
               className={({ isActive }) => `relative w-full h-12 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 rounded-full text-[11px] sm:text-[13px] font-medium transition-colors ${focus} ${isActive ? 'bg-sage-faint text-sage' : 'text-muted hover:text-ink'}`}>
@@ -87,7 +95,7 @@ function BottomNav() {
               )}
             </NavLink>
           </li>
-        ))}
+        )])}
       </ul>
     </nav>
   );
