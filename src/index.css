@@ -3,6 +3,8 @@
 @tailwind utilities;
 
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* 휴대폰에서는 전체를 조금 작게 (글씨 · 버튼 · 여백 모두) */
+@media (max-width: 640px) { html { zoom: .86; } }
 html, body { background-color: #F7F8F5; }
 body {
   margin: 0; color: #2E352F; overflow-x: clip; -webkit-font-smoothing: antialiased;
